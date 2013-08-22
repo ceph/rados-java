@@ -26,7 +26,7 @@ import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.Arrays;
 
 import static com.ceph.rbd.Library.rbd;
 import com.sun.jna.NativeLong;
@@ -184,30 +184,37 @@ public class RbdImage {
      */
     public List<RbdSnapInfo> snapList() throws RbdException {
         IntByReference numSnaps = new IntByReference(16);
-        PointerByReference snaps = new PointerByReference();
-        List<RbdSnapInfo> list = new ArrayList<RbdSnapInfo>();
-        RbdSnapInfo snapInfo, snapInfos[];
+        RbdSnapInfo[] snaps;
 
         while (true) {
+            snaps = new RbdSnapInfo[numSnaps.getValue()];
             int r = rbd.rbd_snap_list(this.getPointer(), snaps, numSnaps);
             if (r >= 0) {
                 numSnaps.setValue(r);
                 break;
+            } else if (r == -34) { /* FIXME: hard-coded -ERANGE */
+                numSnaps.setValue(r);
             } else {
                 throw new RbdException("Failed listing snapshots", r);
             }
         }
 
-        Pointer p = snaps.getValue();
-        snapInfo = new RbdSnapInfo(p);
-        snapInfos = (RbdSnapInfo[]) snapInfo.toArray(numSnaps.getValue());
-
+        /*
+         * Before clearing the backing list (well, just the name strings)
+         * we'll disable auto sync so that junk doesn't repopulate the info
+         * struct.
+         *
+         * FIXME: this is dumb, and I'm not exactly sure how to fix it, though
+         * it does work. Note that this should be fine as long as you don't
+         * re-use the RbdSnapInfo as a parameter to another native function.
+         */
         for (int i = 0; i < numSnaps.getValue(); i++) {
-            list.add(snapInfos[i]);
+          snaps[i].setAutoSynch(false);
         }
-
+        
         rbd.rbd_snap_list_end(snaps);
-        return list;
+
+        return Arrays.asList(snaps).subList(0, numSnaps.getValue());
     }
 
     /**
