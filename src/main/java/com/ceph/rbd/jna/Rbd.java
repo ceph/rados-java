@@ -57,4 +57,6 @@ public interface Rbd extends Library {
     int rbd_copy2(Pointer source_image, Pointer dest_image);
     int rbd_resize(Pointer source_image, long size);
     int rbd_flatten(Pointer image);
+    int rbd_snap_set(Pointer image, String snapname);
+    int rbd_list_children(Pointer image, byte[] pools, IntByReference pools_len, byte[] images, IntByReference images_len);
 }

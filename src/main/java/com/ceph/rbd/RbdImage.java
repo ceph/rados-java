@@ -25,6 +25,7 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
 
@@ -297,4 +298,77 @@ public class RbdImage {
             throw new RbdException("Failed to flatten the RBD image", r);
         }
     }
+    
+    /**
+	 * List children of a snapshot
+	 * 
+	 * @param snapname 
+	 *         Name of the snapshot on RBD image
+	 * @return 
+	 *         List of children with each element in the list in pool/image format
+	 * @throws RbdException
+	 */
+	public List<String> listChildren(String snapname) throws RbdException {
+		// Set the snapshot to read from
+		int r = rbd.rbd_snap_set(this.getPointer(), snapname);
+
+		if (r < 0) {
+			throw new RbdException("Failed to set snapshot name to " + snapname + ". Return code: " + r, r);
+		}
+
+		try {
+			// Length of the buffers containing names of snapshot children is unknown at this point. To figure that out, list the snapshot children using a
+			// buffer sized 1. A 0 sized buffer causes the native stuff to seg fault, hence initializing the buffer size to 1. Response may not contain the
+			// actual data as the buffers may be too small but will return the actual sizes of the buffers. Setup the buffers with correct size and and list
+			// the snapshot children again
+			
+			IntByReference poolBufferSize = new IntByReference(1);
+			IntByReference imageBufferSize = new IntByReference(1);
+
+			byte pools[] = new byte[poolBufferSize.getValue()];
+			byte images[] = new byte[imageBufferSize.getValue()];
+
+			// List the children of the snapshot.
+			r = rbd.rbd_list_children(this.getPointer(), pools, poolBufferSize, images, imageBufferSize);
+
+			if (r < 0 && r != -34) { // -34 (-ERANGE) may be returned if the byte buffers are not big enough
+				throw new RbdException("Failed to list snap children. Return code: " + r, r);
+			} else { // poolLength and imageLength should now contain correct values
+				
+				List<String> poolImageList = new ArrayList<String>();
+				
+				if (poolBufferSize.getValue() == 0 && imageBufferSize.getValue() == 0) {
+					// Nothing to do here, the snapshot may not have any children
+				} else {
+
+					// Create byte buffers with correct sizes
+					pools = new byte[poolBufferSize.getValue()];
+					images = new byte[imageBufferSize.getValue()];
+
+					// List the children of the snapshot
+					r = rbd.rbd_list_children(this.getPointer(), pools, poolBufferSize, images, imageBufferSize);
+
+					if (r < 0) {
+						throw new RbdException("Failed to list snap children. Return code: " + r, r);
+					}
+
+					String[] poolNames = new String(pools).split("\0");
+					String[] imageNames = new String(images).split("\0");
+
+					if (poolNames.length != imageNames.length) {
+						throw new RbdException("Mismatch between number of pools and images, pools = " + poolNames.length + ", images = " + imageNames.length);
+					}
+
+					for (int i = 0; i < poolNames.length; i++) {
+						poolImageList.add(poolNames[i] + '/' + imageNames[i]);
+					}
+				}
+				
+				return poolImageList;
+			}
+		} finally {
+			// Un-set the snapshot
+			rbd.rbd_snap_set(this.getPointer(), new String());
+		}
+	}
 }

@@ -459,4 +459,87 @@ public final class TestRbd extends TestCase {
 			fail(e.getMessage() + ": " + e.getReturnValue());
 		}
 	}
+	
+	public void testListChildren() {
+		try {
+			String parentImageName = "parentimage";
+			String cloneImageName1 = "childimage1";
+			String cloneImageName2 = "childimage2";
+			String snapName = "snapshot";
+			long imageSize = 10485760;
+
+			Rados r = new Rados(this.id);
+			r.confReadFile(new File(this.configFile));
+			r.connect();
+			IoCTX io = r.ioCtxCreate(this.pool);
+			Rbd rbd = new Rbd(io);
+
+			// We only want layering and format 2
+			int features = (1 << 0);
+
+			// Create the parent image
+			rbd.create(parentImageName, imageSize, features, 0);
+
+			// Open the parent image
+			RbdImage parentImage = rbd.open(parentImageName);
+
+			// Verify that image is in format 2
+			boolean oldFormat = parentImage.isOldFormat();
+			assertTrue("The image wasn't the new (2) format", !oldFormat);
+
+			// Create a snapshot on the parent image
+			parentImage.snapCreate(snapName);
+
+			// Verify that snapshot exists
+			List<RbdSnapInfo> snaps = parentImage.snapList();
+			assertEquals("There should only be one snapshot", 1, snaps.size());
+
+			// Protect the snapshot
+			parentImage.snapProtect(snapName);
+
+			// Verify that snapshot is protected
+			boolean isProtected = parentImage.snapIsProtected(snapName);
+			assertTrue("The snapshot was not protected", isProtected);
+
+			// Clone the parent image using the snapshot
+			rbd.clone(parentImageName, snapName, io, cloneImageName1, features, 0);
+
+			// Clone the parent image using the snapshot
+			rbd.clone(parentImageName, snapName, io, cloneImageName2, features, 0);
+			
+			// List the children of snapshot
+			List<String> children = parentImage.listChildren(snapName);
+			
+			// Verify that two children are returned and the list contains their names
+			assertEquals("There should be two children for the snapshot", 2, children.size());
+			assertTrue(this.pool + '/' + cloneImageName1 + " should be listed as a child", children.contains(this.pool + '/' + cloneImageName1));
+			assertTrue(this.pool + '/' + cloneImageName2 + " should be listed as a child", children.contains(this.pool + '/' + cloneImageName2));
+			
+			// Delete the cloned images
+			rbd.remove(cloneImageName1);
+			rbd.remove(cloneImageName2);
+			
+			// Unprotect the snapshot, this will succeed only after the clone is flattened
+			parentImage.snapUnprotect(snapName);
+
+			// Verify that snapshot is not protected
+			isProtected = parentImage.snapIsProtected(snapName);
+			assertTrue("The snapshot was protected", !isProtected);
+
+			// Delete the snapshot
+			parentImage.snapRemove(snapName);
+
+			// Close the parent imgag
+			rbd.close(parentImage);
+
+			// Delete the parent image
+			rbd.remove(parentImageName);
+			
+			r.ioCtxDestroy(io);
+		} catch (RbdException e) {
+			fail(e.getMessage() + ": " + e.getReturnValue());
+		} catch (RadosException e) {
+			fail(e.getMessage() + ": " + e.getReturnValue());
+		}
+	}
 }
