@@ -19,6 +19,7 @@
 
 package com.ceph.rados;
 
+import com.ceph.rados.exceptions.ErrorCode;
 import com.ceph.rados.exceptions.RadosException;
 import com.ceph.rados.jna.RadosObjectInfo;
 import com.ceph.rados.jna.RadosPoolInfo;
@@ -34,7 +35,6 @@ import java.util.concurrent.Callable;
 import static com.ceph.rados.Library.rados;
 
 public class IoCTX extends RadosBase {
-    private static final int MAX_ATTR_VALUE_SIZE = 256;
 
     private Pointer ioCtxPtr;
 
@@ -340,10 +340,6 @@ public class IoCTX extends RadosBase {
      */
     public void setXAttr(final String oid, final String name, String value) throws RadosException {
         final byte[] buf = Native.toByteArray(value);
-        if (buf.length > MAX_ATTR_VALUE_SIZE) {
-            throw new IllegalArgumentException(String.format("value can not " +
-                    "long than %d bytes", MAX_ATTR_VALUE_SIZE));
-        }
 
         handleReturnCode(new Callable<Integer>() {
             @Override
@@ -355,23 +351,42 @@ public class IoCTX extends RadosBase {
     }
 
     /**
+     * @see #getXAttr(String, String, int)
+     */
+    public String getXAttr(final String oid, final String name) throws RadosException {
+        return getXAttr(oid, name, 512);
+    }
+
+    /**
      * Get the value of an extend attribute on an object.
      * @param oid The name of the object
      * @param name which extend attribute to read
+     * @param bufSize the buffer size to store value
      * @return value of attribute
      * @throws RadosException
      */
-    public String getXAttr(final String oid, final String name) throws RadosException {
-        final byte[] buf = new byte[MAX_ATTR_VALUE_SIZE];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_getxattr(getPointer(), oid, name, buf,
-                        buf.length);
-            }
-        }, "Failed get xattr %s for %s", name, oid);
+    public String getXAttr(final String oid, final String name, int bufSize) throws RadosException {
+        while (true) {
+            final byte[] buf = new byte[bufSize];
+            final Callable<Integer> callable = new Callable<Integer>() {
+                @Override
+                public Integer call() throws Exception {
+                    return rados.rados_getxattr(getPointer(), oid, name, buf,
+                            buf.length);
+                }
+            };
 
-        return Native.toString(buf);
+            int result = call(callable);
+            if (result >=0 ) {
+                return Native.toString(buf);
+            }
+
+            if (ErrorCode.getEnum(result) != ErrorCode.ERANGE) {
+                throwException(result, String.format("Failed get xattr %s for %s", name, oid));
+            }
+
+            bufSize *= 2;
+        }
     }
 
     /**
