@@ -52,7 +52,7 @@ public class RadosBase {
         return result;
     }
 
-    private <T> T call(Callable<T> callable) throws RadosException {
+    protected static <T> T call(Callable<T> callable) throws RadosException {
         T result;
         try {
             result = callable.call();
@@ -65,7 +65,7 @@ public class RadosBase {
     }
 
 
-    private void throwException(int errorCode, String msg) throws RadosException {
+    protected static void throwException(int errorCode, String msg) throws RadosException {
         final String errorName = ErrorCode.getErrorName(errorCode);
         final String errorMessage = ErrorCode.getErrorMessage(errorCode);
         final String finalMessage = String.format("%s; %s: %s", msg, errorName, errorMessage);
