@@ -19,19 +19,23 @@
 
 package com.ceph.rados;
 
+import static com.ceph.rados.Library.rados;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+
 import com.ceph.rados.exceptions.RadosException;
 import com.ceph.rados.jna.RadosObjectInfo;
 import com.ceph.rados.jna.RadosPoolInfo;
-import com.sun.jna.Pointer;
-import com.sun.jna.Native;
 import com.sun.jna.Memory;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
-
-import static com.ceph.rados.Library.rados;
+import com.sun.jna.ptr.PointerByReference;
 
 public class IoCTX extends RadosBase {
 
@@ -643,4 +647,42 @@ public class IoCTX extends RadosBase {
         }, "Failed to remove extended attribute %s from %s", xattrName, oid);
    }
 
+   /**
+     * Get all extended attributes on an object.
+     * 
+     * @param oid
+     *          The name of the object
+     * @return
+     * 		The map of the extended attributes
+     * @throws RadosException
+     * 		on failure
+     */
+    public Map<String, String> getExtentedAttributes(final String oid) throws RadosException {
+        Map<String, String> attr_map = new HashMap<>();
+        final Pointer iterator = new Memory(Pointer.SIZE);
+        final PointerByReference attr_name = new PointerByReference();
+        final PointerByReference attr_value = new PointerByReference();
+        final IntByReference attr_value_len = new IntByReference();
+
+        handleReturnCode(new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                return rados.rados_getxattrs(getPointer(), oid, iterator);
+            }
+        }, "Failed starting to list all extended attributes");
+
+        while (rados.rados_getxattrs_next(iterator.getPointer(0), attr_name, attr_value, attr_value_len) == 0
+                && attr_value_len.getValue() > 0) {
+            int length = attr_value_len.getValue();
+            String name = (attr_name.getValue() == null ? null : new String(attr_name.getValue().getString(0)));
+            String value = (attr_value.getValue() == null ? null : new String(attr_value.getValue().getString(0)));
+            if (length > 0 && name != null && value != null) {
+                attr_map.put(name, value);
+            }
+        }
+
+        rados.rados_getxattrs_end(iterator.getPointer(0));
+
+        return attr_map;
+    }
 }
