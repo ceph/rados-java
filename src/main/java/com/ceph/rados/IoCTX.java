@@ -647,6 +647,16 @@ public class IoCTX extends RadosBase {
         }, "Failed to remove extended attribute %s from %s", xattrName, oid);
    }
 
+   /**
+     * Get all extended attributes on an object.
+     * 
+     * @param oid
+     *          The name of the object
+     * @return
+     * 		The map of the extended attributes
+     * @throws RadosException
+     * 		on failure
+     */
     public Map<String, String> getExtentedAttributes(final String oid) throws RadosException {
         Map<String, String> attr_map = new HashMap<>();
         final Pointer iterator = new Memory(Pointer.SIZE);
