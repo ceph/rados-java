@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.mockito.internal.configuration.injection.filter.FinalMockCandidateFilter;
+
 import com.ceph.rados.exceptions.RadosException;
 import com.ceph.rados.jna.RadosObjectInfo;
 import com.ceph.rados.jna.RadosPoolInfo;
@@ -621,6 +623,34 @@ public class IoCTX extends RadosBase implements Closeable {
             }
         }, "Failed to lookup the ID of snapshot %s", snapname);
         return id.getValue();
+    }
+
+    /**
+     * roll_back
+     * @param snapname
+     * @throws RadosException
+     */
+    public void snapRollBack(final String oid,final String snapname) throws RadosException {
+        handleReturnCode(new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                return rados.rados_ioctx_snap_rollback(getPointer(), oid, snapname);
+            }
+        }, "Failed to rollback snapshot %s", snapname);
+    }
+
+    /**
+     * roll_back
+     * @param snapname
+     * @throws RadosException
+     */
+    public void snapSelfRollBack(final String oid,final long snapid) throws RadosException {
+        handleReturnCode(new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                return rados.rados_ioctx_selfmanaged_snap_rollback(getPointer(), oid, snapid);
+            }
+        }, "Failed to rollback snapshot %s", snapid);
     }
 
     /**

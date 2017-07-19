@@ -61,6 +61,8 @@ public interface Rados extends Library {
     void rados_ioctx_locator_set_key(Pointer ioctx, String key);
     int rados_ioctx_snap_create(Pointer ioctx, String snapname);
     int rados_ioctx_snap_remove(Pointer ioctx, String snapname);
+    int rados_ioctx_snap_rollback(Pointer ioctx, String oid,String snapname);
+    int rados_ioctx_selfmanaged_snap_rollback(Pointer ioctx, String oid,long snapid);
     int rados_ioctx_snap_lookup(Pointer ioctx, String snapname, LongByReference id);
     int rados_ioctx_snap_get_name(Pointer ioctx, long id, byte[] buf, long len);
     int rados_ioctx_snap_get_stamp(Pointer ioctx, long id, LongByReference time);
@@ -89,7 +91,7 @@ public interface Rados extends Library {
     int rados_aio_write(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length, long offset);
     int rados_aio_write_full(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length);
     int rados_aio_wait_for_complete(Pointer completion);
-    
+
     // read, write, remove, iterate extended attributes
     int rados_getxattr(Pointer ioctx, String oid, String xattrName, byte[] buf, long len);
     int rados_setxattr(Pointer ioctx, String oid, String xattrName, byte[] buf, long len);
