@@ -626,34 +626,6 @@ public class IoCTX extends RadosBase implements Closeable {
     }
 
     /**
-     * roll_back
-     * @param snapname
-     * @throws RadosException
-     */
-    public void snapRollBack(final String oid,final String snapname) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_rollback(getPointer(), oid, snapname);
-            }
-        }, "Failed to rollback snapshot %s", snapname);
-    }
-
-    /**
-     * roll_back
-     * @param snapname
-     * @throws RadosException
-     */
-    public void snapSelfRollBack(final String oid,final long snapid) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_selfmanaged_snap_rollback(getPointer(), oid, snapid);
-            }
-        }, "Failed to rollback snapshot %s", snapid);
-    }
-
-    /**
      * Get the name of a snapshot by it's ID
      *
      * @param id

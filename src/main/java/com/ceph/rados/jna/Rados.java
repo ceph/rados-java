@@ -61,8 +61,6 @@ public interface Rados extends Library {
     void rados_ioctx_locator_set_key(Pointer ioctx, String key);
     int rados_ioctx_snap_create(Pointer ioctx, String snapname);
     int rados_ioctx_snap_remove(Pointer ioctx, String snapname);
-    int rados_ioctx_snap_rollback(Pointer ioctx, String oid,String snapname);
-    int rados_ioctx_selfmanaged_snap_rollback(Pointer ioctx, String oid,long snapid);
     int rados_ioctx_snap_lookup(Pointer ioctx, String snapname, LongByReference id);
     int rados_ioctx_snap_get_name(Pointer ioctx, long id, byte[] buf, long len);
     int rados_ioctx_snap_get_stamp(Pointer ioctx, long id, LongByReference time);

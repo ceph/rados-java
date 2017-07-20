@@ -46,8 +46,11 @@ public interface Rbd extends Library {
     int rbd_clone2(Pointer p_io, String p_name, String p_snapname,
             Pointer c_io, String c_name, long features, IntByReference order,
             long stripe_unit, long stripe_count);
+    int rbd_get_size(Pointer image,LongByReference size);
+    int rbd_get_features(Pointer image,LongByReference features);
     int rbd_snap_create(Pointer image, String snapname);
     int rbd_snap_remove(Pointer image, String snapname);
+    int rbd_snap_rollback(Pointer image, String snapname);
     int rbd_snap_protect(Pointer image, String snapname);
     int rbd_snap_unprotect(Pointer image, String snapname);
     int rbd_snap_is_protected(Pointer image, String snap_name, IntByReference is_protected);

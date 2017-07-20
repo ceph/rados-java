@@ -97,6 +97,40 @@ public class RbdImage {
     }
 
     /**
+     * Get the size of this RBD image
+     *
+     *
+     * @return long
+     * @throws RbdException
+     */
+    public long getSize() throws RbdException{
+    	LongByReference size = new LongByReference();
+    	int r = rbd.rbd_get_size(this.getPointer(), size);
+    	if (r < 0) {
+            throw new RbdException("Failed to get the RBD size", r);
+        }
+
+    	return size.getValue();
+    }
+
+    /**
+     * Get the features of this RBD image
+     *
+     *
+     * @return long
+     * @throws RbdException
+     */
+    public long getFeatures() throws RbdException{
+    	LongByReference features = new LongByReference();
+    	int r = rbd.rbd_get_features(this.getPointer(), features);
+    	if (r < 0) {
+            throw new RbdException("Failed to get the RBD features", r);
+        }
+
+    	return features.getValue();
+    }
+
+    /**
      * Create a RBD snapshot
      *
      * @param snapName
@@ -121,6 +155,20 @@ public class RbdImage {
         int r = rbd.rbd_snap_remove(this.getPointer(), snapName);
         if (r < 0) {
             throw new RbdException("Failed to remove snapshot " + snapName, r);
+        }
+    }
+
+    /**
+     * Rollback a RBD snapshot
+     *
+     * @param snapName
+     *         The name of the snapshot
+     * @throws RbdException
+     */
+    public void snapRollBack(String snapName) throws RbdException{
+    	int r = rbd.rbd_snap_rollback(this.getPointer(), snapName);
+        if (r < 0) {
+            throw new RbdException("Failed to rollback snapshot " + snapName, r);
         }
     }
 
