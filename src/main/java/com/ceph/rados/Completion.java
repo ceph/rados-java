@@ -134,6 +134,21 @@ public class Completion extends RadosBase implements Closeable {
     }
 
     /**
+     * Block until the operation is safe. This means it is on stable storage on all
+     * replicas.
+     * 
+     * @throws RadosException
+     */
+    public void waitForSafe() throws RadosException {
+        handleReturnCode(new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                return rados.rados_aio_wait_for_safe(getPointer());
+            }
+        }, "Failed to wait for AIO safe");
+    }
+
+    /**
      * Override this function to implement callback handling. If notifyOnSafe is
      * true, this function is called when the operation is in memory on all
      * replicas.

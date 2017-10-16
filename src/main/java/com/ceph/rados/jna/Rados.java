@@ -89,6 +89,7 @@ public interface Rados extends Library {
     int rados_aio_write(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length, long offset);
     int rados_aio_write_full(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length);
     int rados_aio_wait_for_complete(Pointer completion);
+    int rados_aio_wait_for_safe(Pointer completion);
     
     // read, write, remove, iterate extended attributes
     int rados_getxattr(Pointer ioctx, String oid, String xattrName, byte[] buf, long len);
