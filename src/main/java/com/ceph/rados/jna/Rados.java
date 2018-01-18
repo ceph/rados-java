@@ -103,4 +103,6 @@ public interface Rados extends Library {
     int rados_mon_command(Pointer cluster, String[] cmd, int cmdLen, String inbuf, int inbufLen, PointerByReference outBuf, IntByReference outBufLen, PointerByReference statusBuf, IntByReference statusBufLen);
     int rados_mon_command_target(Pointer cluster, String target, String[] cmd, int cmdLen, String inbuf, int inbufLen, PointerByReference outBuf, IntByReference outBufLen, PointerByReference statusBuf, IntByReference statusBufLen);
     int rados_osd_command(Pointer cluster, int osdId, String[] cmd, int cmdLen, String inbuf, int inbufLen, PointerByReference outBuf, IntByReference outBufLen, PointerByReference statusBuf, IntByReference statusBufLen);
+
+    void rados_buffer_free(Pointer buf);
 }
