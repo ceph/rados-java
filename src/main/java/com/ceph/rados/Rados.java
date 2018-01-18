@@ -438,6 +438,8 @@ public class Rados extends RadosBase {
 
         final String out = (outBuf.getValue() == null ? "" : new String(outBuf.getValue().getByteArray(0, outBufLen.getValue())));
 
+        bufferFree(outBuf.getValue());
+
         return new RadosCommandResult(out, status);
     }
 
@@ -467,6 +469,8 @@ public class Rados extends RadosBase {
 
         final String out = (outBuf.getValue() == null ? "" : new String(outBuf.getValue().getByteArray(0, outBufLen.getValue())));
 
+        bufferFree(outBuf.getValue());
+
         return new RadosCommandResult(out, status);
     }
 
@@ -495,6 +499,8 @@ public class Rados extends RadosBase {
             throw new RadosException("Error when executing Rados osd command: " + status, r);
 
         final String out = (outBuf.getValue() == null ? "" : new String(outBuf.getValue().getByteArray(0, outBufLen.getValue())));
+
+        bufferFree(outBuf.getValue());
 
         return new RadosCommandResult(out, status);
     }
@@ -529,5 +535,17 @@ public class Rados extends RadosBase {
         public String getStatus() {
             return statusOutput;
         }
+    }
+
+    /**
+     * free a rados-allocated buffer
+     *
+     * Release memory allocated by librados calls like rados_mon_command().
+     *
+     * @param buf buffer pointer
+     */
+    public void bufferFree(final Pointer buf) {
+        rados.rados_buffer_free(buf);
+        return;
     }
 }
