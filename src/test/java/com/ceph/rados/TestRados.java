@@ -65,6 +65,10 @@ public final class TestRados {
         rados.confReadFile(new File(CONFIG_FILE));
         rados.connect();
         ioctx = rados.ioCtxCreate(POOL);
+        String [] allOids = ioctx.listObjects();
+        for (int i = 0; i < allOids.length; i++) {
+          ioctx.remove(allOids[i]);
+        }
     }
 
     @AfterClass
@@ -405,21 +409,20 @@ public final class TestRados {
         /**
          * The object we will write to with the data
          */
-        Rados r = null;
-        IoCTX io = null;
         String oid = "rados-java_item_";
         String content = "junit wrote this ";
         int nb = 100;
 
         try {
             System.out.println("Start");
+            String [] allOids = ioctx.listObjects();
             for (int i = 0; i < nb; i++) {
                 byte []bytes = (content + i).getBytes();
                 ioctx.writeFull(oid+i, bytes, bytes.length);
             }
 
-            String [] allOids = ioctx.listObjects();
-            assertTrue("Global number of items should be " + nb, allOids.length == nb);
+            allOids = ioctx.listObjects();
+            assertTrue("Global number of items should be " + nb + ", but is " + allOids.length, allOids.length == nb);
 
             // Check reading all items in 10 parts
             ListCtx listCtx = ioctx.listObjectsPartial(nb/10);
@@ -473,11 +476,9 @@ public final class TestRados {
         }
         finally {
             try {
-                if(r != null) {
-                    if(ioctx != null) {
-                        for (int i = 0; i < nb; i++) {
-                            ioctx.remove(oid+i);
-                        }
+                if(ioctx != null) {
+                    for (int i = 0; i < nb; i++) {
+                        ioctx.remove(oid+i);
                     }
                 }
             }

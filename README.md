@@ -10,7 +10,7 @@ you can use them on any system where JNA and librados are present.
 ## Building
 
 ```bash
-$ mvn clean install (-DskipTests)
+$ mvn clean install (-Dcom.ceph.rados.skipTests)
 ```
 
 ## Tests

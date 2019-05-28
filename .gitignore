@@ -18,3 +18,4 @@ debian/*.substvars
 debian/librados-java
 pom.xml.releaseBackup
 release.properties
+/pom.xml

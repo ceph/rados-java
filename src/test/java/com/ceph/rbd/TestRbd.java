@@ -76,6 +76,10 @@ public final class TestRbd {
         rados.confReadFile(new File(CONFIG_FILE));
         rados.connect();
         ioctx = rados.ioCtxCreate(POOL);
+        String [] allOids = ioctx.listObjects();
+        for (int i = 0; i < allOids.length; i++) {
+            ioctx.remove(allOids[i]);
+        }
     }
 
     @AfterClass

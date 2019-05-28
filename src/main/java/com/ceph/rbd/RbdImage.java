@@ -26,6 +26,8 @@ import com.sun.jna.Native;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 import com.sun.jna.ptr.PointerByReference;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
@@ -33,7 +35,7 @@ import java.util.Arrays;
 import static com.ceph.rbd.Library.rbd;
 import com.sun.jna.NativeLong;
 
-public class RbdImage {
+public class RbdImage implements Closeable {
 
     private Pointer image;
     private String name;
@@ -97,40 +99,6 @@ public class RbdImage {
     }
 
     /**
-     * Get the size of this RBD image
-     *
-     *
-     * @return long
-     * @throws RbdException
-     */
-    public long getSize() throws RbdException{
-    	LongByReference size = new LongByReference();
-    	int r = rbd.rbd_get_size(this.getPointer(), size);
-    	if (r < 0) {
-            throw new RbdException("Failed to get the RBD size", r);
-        }
-
-    	return size.getValue();
-    }
-
-    /**
-     * Get the features of this RBD image
-     *
-     *
-     * @return long
-     * @throws RbdException
-     */
-    public long getFeatures() throws RbdException{
-    	LongByReference features = new LongByReference();
-    	int r = rbd.rbd_get_features(this.getPointer(), features);
-    	if (r < 0) {
-            throw new RbdException("Failed to get the RBD features", r);
-        }
-
-    	return features.getValue();
-    }
-
-    /**
      * Create a RBD snapshot
      *
      * @param snapName
@@ -166,7 +134,7 @@ public class RbdImage {
      * @throws RbdException
      */
     public void snapRollBack(String snapName) throws RbdException{
-    	int r = rbd.rbd_snap_rollback(this.getPointer(), snapName);
+        int r = rbd.rbd_snap_rollback(this.getPointer(), snapName);
         if (r < 0) {
             throw new RbdException("Failed to rollback snapshot " + snapName, r);
         }
@@ -376,15 +344,15 @@ public class RbdImage {
 			int initialBufferSize = 1024;
             int childCount;
 
-			IntByReference poolBufferSize = new IntByReference(initialBufferSize);
-			IntByReference imageBufferSize = new IntByReference(initialBufferSize);
+			LongByReference poolBufferSize = new LongByReference(initialBufferSize);
+			LongByReference imageBufferSize = new LongByReference(initialBufferSize);
 
 			byte pools[];
 			byte images[];
 
             do {
-                pools = new byte[poolBufferSize.getValue()];
-                images = new byte[imageBufferSize.getValue()];
+                pools = new byte[(int) poolBufferSize.getValue()];
+                images = new byte[(int) imageBufferSize.getValue()];
                 childCount = rbd.rbd_list_children(this.getPointer(), pools, poolBufferSize, images, imageBufferSize);
                 // -34 (-ERANGE) is returned if the byte buffers are not big enough
             } while (childCount == -34);
@@ -416,4 +384,12 @@ public class RbdImage {
 			rbd.rbd_snap_set(this.getPointer(), new String());
 		}
 	}
+
+    @Override
+    public void close() throws RbdException {
+        int rc = rbd.rbd_close(this.getPointer());
+        if (rc < 0) {
+            throw new RbdException("Failed to close image " + name, rc);
+        }
+    }
 }

@@ -59,13 +59,13 @@ public class ListCtx {
         }
         Pointer entry = new Memory(Pointer.SIZE);
         int i = 0;
-        while (i < limit && rados.rados_objects_list_next(list.getPointer(0), entry, null) == 0) {
+        while (i < limit && rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
             ids[i] = entry.getPointer(0).getString(0);
             i++;
         }
         if (i < limit) {
             // closing it
-            rados.rados_objects_list_close(list.getPointer(0));
+            rados.rados_nobjects_list_close(list.getPointer(0));
             list = null;
         }
         this.size = i;
@@ -84,17 +84,17 @@ public class ListCtx {
         }
         Pointer entry = new Memory(Pointer.SIZE);
         long j = 0;
-        while (j < skip && rados.rados_objects_list_next(list.getPointer(0), entry, null) == 0) {
+        while (j < skip && rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
             j++;
         }
         int i = 0;
-        while (i < limit && rados.rados_objects_list_next(list.getPointer(0), entry, null) == 0) {
+        while (i < limit && rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
             ids[i] = entry.getPointer(0).getString(0);
             i++;
         }
         if (i < limit) {
             // closing it
-            rados.rados_objects_list_close(list.getPointer(0));
+            rados.rados_nobjects_list_close(list.getPointer(0));
             list = null;
         }
         this.size = i;
@@ -122,7 +122,7 @@ public class ListCtx {
      */
     public void close() {
         if (list != null) {
-            rados.rados_objects_list_close(list.getPointer(0));
+            rados.rados_nobjects_list_close(list.getPointer(0));
             list = null;
         }
     }

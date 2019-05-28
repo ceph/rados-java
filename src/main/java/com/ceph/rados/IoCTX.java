@@ -1,22 +1,3 @@
-/*
- * RADOS Java - Java bindings for librados
- *
- * Copyright (C) 2013 Wido den Hollander <wido@42on.com>
- * Copyright (C) 2014 1&1 - Behar Veliqi <behar.veliqi@1und1.de>
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on
- * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific
- * language governing permissions and limitations under the License.
- */
-
 package com.ceph.rados;
 
 import static com.ceph.rados.Library.rados;
@@ -28,8 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-
-import org.mockito.internal.configuration.injection.filter.FinalMockCandidateFilter;
 
 import com.ceph.rados.exceptions.RadosException;
 import com.ceph.rados.jna.RadosObjectInfo;
@@ -166,15 +145,15 @@ public class IoCTX extends RadosBase implements Closeable {
         handleReturnCode(new Callable<Integer>() {
             @Override
             public Integer call() throws Exception {
-                return rados.rados_objects_list_open(getPointer(), list);
+                return rados.rados_nobjects_list_open(getPointer(), list);
             }
         }, "Failed starting to list all objects");
 
-        while (rados.rados_objects_list_next(list.getPointer(0), entry, null) == 0) {
+        while (rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
             objects.add(entry.getPointer(0).getString(0));
         }
 
-        rados.rados_objects_list_close(list.getPointer(0));
+        rados.rados_nobjects_list_close(list.getPointer(0));
 
         return objects.toArray(new String[objects.size()]);
     }
@@ -189,7 +168,7 @@ public class IoCTX extends RadosBase implements Closeable {
     public ListCtx listObjectsPartial(int limit) throws RadosException {
         Pointer list = new Memory(Pointer.SIZE);
 
-        int r = rados.rados_objects_list_open(this.getPointer(), list);
+        int r = rados.rados_nobjects_list_open(this.getPointer(), list);
         if (r < 0) {
             throw new RadosException("Failed listing all objects", r);
         }
@@ -816,3 +795,4 @@ public class IoCTX extends RadosBase implements Closeable {
         rados.rados_ioctx_destroy(getPointer());
     }
 }
+

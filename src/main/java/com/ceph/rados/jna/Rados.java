@@ -65,9 +65,9 @@ public interface Rados extends Library {
     int rados_ioctx_snap_get_name(Pointer ioctx, long id, byte[] buf, long len);
     int rados_ioctx_snap_get_stamp(Pointer ioctx, long id, LongByReference time);
     int rados_ioctx_snap_list(Pointer ioctx, byte[] buf, int len);
-    int rados_objects_list_open(Pointer ioctx, Pointer list);
-    int rados_objects_list_next(Pointer list, Pointer entry, byte[] key);
-    void rados_objects_list_close(Pointer list);
+    int rados_nobjects_list_open(Pointer ioctx, Pointer list);
+    int rados_nobjects_list_next(Pointer list, Pointer entry, byte[] key, byte[] nspace);
+    void rados_nobjects_list_close(Pointer list);
     int rados_write(Pointer ioctx, String oid, byte[] buf, int len, long off);
     int rados_write_full(Pointer ioctx, String oid, byte[] buf, int len);
     int rados_append(Pointer ioctx, String oid, byte[] buf, int len);
@@ -89,6 +89,7 @@ public interface Rados extends Library {
     int rados_aio_write(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length, long offset);
     int rados_aio_write_full(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length);
     int rados_aio_wait_for_complete(Pointer completion);
+    int rados_aio_wait_for_safe(Pointer completion);
 
     // read, write, remove, iterate extended attributes
     int rados_getxattr(Pointer ioctx, String oid, String xattrName, byte[] buf, long len);
