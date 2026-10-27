@@ -19,9 +19,8 @@
 package com.ceph.rbd.jna;
 
 import com.sun.jna.Structure;
-import java.util.List;
-import java.util.Arrays;
 
+@Structure.FieldOrder({"size", "obj_size", "num_objs", "order", "block_name_prefix", "parent_pool", "parent_name"})
 public class RbdImageInfo extends Structure implements Structure.ByReference {
     public long size;
     public long obj_size;
@@ -37,9 +36,4 @@ public class RbdImageInfo extends Structure implements Structure.ByReference {
         this.parent_name = new byte[96];
     }
 
-    protected List getFieldOrder() {
-        return Arrays.asList("size", "obj_size", "num_objs", "order",
-                             "block_name_prefix", "parent_pool",
-                             "parent_name");
-    }
 }

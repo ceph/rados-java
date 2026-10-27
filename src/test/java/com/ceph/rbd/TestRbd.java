@@ -28,15 +28,15 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.security.SecureRandom;
 import java.math.BigInteger;
@@ -70,7 +70,7 @@ public final class TestRbd {
         }
     }
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
         rados = new Rados(ID);
         rados.confReadFile(new File(CONFIG_FILE));
@@ -82,7 +82,7 @@ public final class TestRbd {
         }
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
         rados.ioCtxDestroy(ioctx);
         rados.shutDown();
@@ -106,7 +106,7 @@ public final class TestRbd {
             Rbd rbd = new Rbd(ioctx);
 
             List<String> imageList = Arrays.asList(rbd.list());
-            assertTrue("There were more then 0 (" + imageList.size() + ") images in the pool", imageList.size() == 0);
+            assertTrue(imageList.size() == 0, "There were more then 0 (" + imageList.size() + ") images in the pool");
         } catch (RbdException e) {
             fail(e.getMessage() + ": " + e.getReturnValue());
         }
@@ -123,14 +123,14 @@ public final class TestRbd {
             rbd.create(imageName, imageSize);
 
             String[] images = rbd.list();
-            assertTrue("There were no images in the pool", images.length > 0);
+            assertTrue(images.length > 0, "There were no images in the pool");
 
             rbd.rename(imageName, newImageName);
 
             RbdImage image = rbd.open(newImageName);
             RbdImageInfo info = image.stat();
 
-            assertEquals("The size of the image didn't match", imageSize, info.size);
+            assertEquals(imageSize, info.size, "The size of the image didn't match");
 
             rbd.close(image);
         } catch (RbdException e) {
@@ -153,7 +153,7 @@ public final class TestRbd {
 
             boolean oldFormat = image.isOldFormat();
 
-            assertTrue("The image wasn't the old (1) format", oldFormat);
+            assertTrue(oldFormat, "The image wasn't the old (1) format");
 
             rbd.close(image);
         } catch (RbdException e) {
@@ -179,7 +179,7 @@ public final class TestRbd {
 
             boolean oldFormat = image.isOldFormat();
 
-            assertTrue("The image wasn't the new (2) format", !oldFormat);
+            assertTrue(!oldFormat, "The image wasn't the new (2) format");
 
             rbd.close(image);
         } catch (RbdException e) {
@@ -207,18 +207,18 @@ public final class TestRbd {
 
             boolean oldFormat = image.isOldFormat();
 
-            assertTrue("The image wasn't the new (2) format", !oldFormat);
+            assertTrue(!oldFormat, "The image wasn't the new (2) format");
 
             image.snapCreate(snapName);
             image.snapProtect(snapName);
 
             List<RbdSnapInfo> snaps = image.snapList();
-            assertEquals("There should only be one snapshot", 1, snaps.size());
+            assertEquals(1, snaps.size(), "There should only be one snapshot");
 
             rbd.clone(imageName, snapName, ioctx, childImageName, features, 0);
 
             boolean isProtected = image.snapIsProtected(snapName);
-            assertTrue("The snapshot was not protected", isProtected);
+            assertTrue(isProtected, "The snapshot was not protected");
 
             rbd.remove(childImageName);
 
@@ -252,10 +252,10 @@ public final class TestRbd {
 
             boolean oldFormat = image.isOldFormat();
 
-            assertTrue("The image wasn't the new (2) format", !oldFormat);
+            assertTrue(!oldFormat, "The image wasn't the new (2) format");
 
             List<RbdSnapInfo> snapsEmpty = image.snapList(initialBufferSize);
-            assertEquals("There should not be any snapshots for the image", 0, snapsEmpty.size());
+            assertEquals(0, snapsEmpty.size(), "There should not be any snapshots for the image");
 
             for (int i = 0; i < numSnaps; i++) {
                 image.snapCreate(snapName + "-" + i);
@@ -263,7 +263,7 @@ public final class TestRbd {
             }
 
             List<RbdSnapInfo> snaps = image.snapList(initialBufferSize);
-            assertEquals("The amount of snapshots does not match", numSnaps, snaps.size());
+            assertEquals(numSnaps, snaps.size(), "The amount of snapshots does not match");
 
             for (int i = 0; i < numSnaps; i++) {
                 image.snapUnprotect(snapName + "-" + i);
@@ -301,7 +301,7 @@ public final class TestRbd {
 
             byte[] data = new byte[buf.length()];
             image.read(0, data, buf.length());
-            assertEquals("Did din't get back what we wrote", new String(data), buf);
+            assertEquals(new String(data), buf, "Did din't get back what we wrote");
 
             rbd.close(image);
         } catch (RbdException e) {
@@ -336,7 +336,7 @@ public final class TestRbd {
 
             byte[] data = new byte[buf.length()];
             long bytes = image2.read(0, data, buf.length());
-            assertEquals("The copy seem to have failed. The data we read didn't match", new String(data), buf);
+            assertEquals(new String(data), buf, "The copy seem to have failed. The data we read didn't match");
 
             rbd.close(image1);
             rbd.close(image2);
@@ -364,7 +364,7 @@ public final class TestRbd {
             image.resize(newSize);
             RbdImageInfo info = image.stat();
 
-            assertEquals("The new size of the image didn't match", newSize, info.size);
+            assertEquals(newSize, info.size, "The new size of the image didn't match");
 
             rbd.close(image);
         } catch (RbdException e) {
@@ -396,21 +396,21 @@ public final class TestRbd {
 
 			// Verify that image is in format 2
 			boolean oldFormat = parentImage.isOldFormat();
-			assertTrue("The image wasn't the new (2) format", !oldFormat);
+			assertTrue(!oldFormat, "The image wasn't the new (2) format");
 
 			// Create a snapshot on the parent image
 			parentImage.snapCreate(snapName);
 
 			// Verify that snapshot exists
 			List<RbdSnapInfo> snaps = parentImage.snapList();
-			assertEquals("There should only be one snapshot", 1, snaps.size());
+			assertEquals(1, snaps.size(), "There should only be one snapshot");
 
 			// Protect the snapshot
 			parentImage.snapProtect(snapName);
 
 			// Verify that snapshot is protected
 			boolean isProtected = parentImage.snapIsProtected(snapName);
-			assertTrue("The snapshot was not protected", isProtected);
+			assertTrue(isProtected, "The snapshot was not protected");
 
 			// Clone the parent image using the snapshot
 			rbd.clone(parentImageName, snapName, ioctx, cloneImageName, features, 0);
@@ -426,7 +426,7 @@ public final class TestRbd {
 
 			// Verify that snapshot is not protected
 			isProtected = parentImage.snapIsProtected(snapName);
-			assertTrue("The snapshot was protected", !isProtected);
+			assertTrue(!isProtected, "The snapshot was protected");
 
 			// Delete the snapshot, this will succeed only after the clone is flattened and snapshot is unprotected
 			parentImage.snapRemove(snapName);
@@ -457,19 +457,19 @@ public final class TestRbd {
 
 			// List images without providing initial buffer size
 			List<String> imageList = Arrays.asList(rbd.list());
-			assertTrue("There were less than " + imageCount + " images in the pool", imageList.size() >= imageCount);
+			assertTrue(imageList.size() >= imageCount, "There were less than " + imageCount + " images in the pool");
 
 			for (int i = 1; i <= imageCount; i++) {
-				assertTrue("Pool does not contain image testimage" + i, imageList.contains(testImage + i));
+				assertTrue(imageList.contains(testImage + i), "Pool does not contain image testimage" + i);
 			}
 
 			// List images and provide initial buffer size
 			imageList = null;
 			imageList = Arrays.asList(rbd.list(testImage.length()));
-			assertTrue("There were less than " + imageCount + " images in the pool", imageList.size() >= imageCount);
+			assertTrue(imageList.size() >= imageCount, "There were less than " + imageCount + " images in the pool");
 
 			for (int i = 1; i <= imageCount; i++) {
-				assertTrue("Pool does not contain image testimage" + i, imageList.contains(testImage + i));
+				assertTrue(imageList.contains(testImage + i), "Pool does not contain image testimage" + i);
 			}
 		} catch (RbdException e) {
 			fail(e.getMessage() + ": " + e.getReturnValue());
@@ -502,21 +502,21 @@ public final class TestRbd {
 
 			// Verify that image is in format 2
 			boolean oldFormat = parentImage.isOldFormat();
-			assertTrue("The image wasn't the new (2) format", !oldFormat);
+			assertTrue(!oldFormat, "The image wasn't the new (2) format");
 
 			// Create a snapshot on the parent image
 			parentImage.snapCreate(snapName);
 
 			// Verify that snapshot exists
 			List<RbdSnapInfo> snaps = parentImage.snapList();
-			assertEquals("There should only be one snapshot", 1, snaps.size());
+			assertEquals(1, snaps.size(), "There should only be one snapshot");
 
 			// Protect the snapshot
 			parentImage.snapProtect(snapName);
 
 			// Verify that snapshot is protected
 			boolean isProtected = parentImage.snapIsProtected(snapName);
-			assertTrue("The snapshot was not protected", isProtected);
+			assertTrue(isProtected, "The snapshot was not protected");
 
 			for (int i = 1; i <= childCount; i++) {
 				// Clone the parent image using the snapshot
@@ -527,10 +527,10 @@ public final class TestRbd {
 			List<String> children = parentImage.listChildren(snapName);
 
 			// Verify that two children are returned and the list contains their names
-			assertEquals("Snapshot should have " + childCount + " children", childCount, children.size());
+			assertEquals(childCount, children.size(), "Snapshot should have " + childCount + " children");
 
 			for (int i = 1; i <= childCount; i++) {
-				assertTrue(POOL + '/' + childImageName + i + " should be listed as a child", children.contains(POOL + '/' + childImageName + i));
+				assertTrue(children.contains(POOL + '/' + childImageName + i), POOL + '/' + childImageName + i + " should be listed as a child");
 			}
 
 			// Delete the cloned images
@@ -543,7 +543,7 @@ public final class TestRbd {
 
 			// Verify that snapshot is not protected
 			isProtected = parentImage.snapIsProtected(snapName);
-			assertTrue("The snapshot was protected", !isProtected);
+			assertTrue(!isProtected, "The snapshot was protected");
 
 			// Delete the snapshot
 			parentImage.snapRemove(snapName);

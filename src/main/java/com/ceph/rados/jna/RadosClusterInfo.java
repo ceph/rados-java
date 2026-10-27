@@ -19,16 +19,12 @@
 package com.ceph.rados.jna;
 
 import com.sun.jna.Structure;
-import java.util.List;
-import java.util.Arrays;
 
+@Structure.FieldOrder({"kb", "kb_used", "kb_avail", "num_objects"})
 public class RadosClusterInfo extends Structure {
     public long kb;
     public long kb_used;
     public long kb_avail;
     public long num_objects;
 
-    protected List getFieldOrder() {
-        return Arrays.asList("kb", "kb_used", "kb_avail", "num_objects");
-    }
 }

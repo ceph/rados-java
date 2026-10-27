@@ -22,6 +22,8 @@ package com.ceph.rados.exceptions;
  */
 public class RadosOperationInProgressException extends RadosException {
 
+    private static final long serialVersionUID = 1L;
+
     /**
      * @param message the message
      * @param returnValue the native error code

@@ -13,6 +13,8 @@ changed in Nautilus.
 # Maven
 ## Building
 
+Building requires JDK 17 or newer and Maven 3.6+ (or use the bundled `./mvnw`).
+
 ```bash
 $ mvn clean install (-Dcom.ceph.rados.skipTests)
 ```

@@ -20,9 +20,8 @@ package com.ceph.rbd.jna;
 
 import com.sun.jna.Structure;
 import com.sun.jna.Pointer;
-import java.util.List;
-import java.util.Arrays;
 
+@Structure.FieldOrder({"id", "size", "name"})
 public class RbdSnapInfo extends Structure {
     public long id;
     public long size;
@@ -36,7 +35,4 @@ public class RbdSnapInfo extends Structure {
         super(p);
     }
 
-    protected List getFieldOrder() {
-        return Arrays.asList("id", "size", "name");
-    }
 }

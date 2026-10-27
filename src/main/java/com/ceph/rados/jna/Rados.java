@@ -21,6 +21,8 @@ package com.ceph.rados.jna;
 import java.nio.ByteBuffer;
 
 import com.sun.jna.Callback;
+import java.util.Collections;
+
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -37,7 +39,8 @@ import com.sun.jna.ptr.PointerByReference;
  */
 public interface Rados extends Library {
 
-    Rados INSTANCE = (Rados) Native.loadLibrary("rados", Rados.class);
+    Rados INSTANCE = Native.load("rados", Rados.class,
+            Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
 
     void rados_version(IntByReference major, IntByReference minor, IntByReference extra);
     int rados_create(PointerByReference cluster, String id);

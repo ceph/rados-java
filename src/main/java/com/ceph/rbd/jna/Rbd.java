@@ -18,6 +18,8 @@
 
 package com.ceph.rbd.jna;
 
+import java.util.Collections;
+
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -27,7 +29,8 @@ import com.sun.jna.ptr.PointerByReference;
 
 public interface Rbd extends Library {
 
-    Rbd INSTANCE = (Rbd) Native.loadLibrary("rbd", Rbd.class);
+    Rbd INSTANCE = Native.load("rbd", Rbd.class,
+            Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
 
     void rbd_version(IntByReference major, IntByReference minor, IntByReference extra);
     int rbd_create(Pointer io, String name, long size, IntByReference order);

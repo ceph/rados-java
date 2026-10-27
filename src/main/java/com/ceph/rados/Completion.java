@@ -3,10 +3,8 @@ package com.ceph.rados;
 import static com.ceph.rados.Library.rados;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 import com.ceph.rados.exceptions.RadosException;
 import com.sun.jna.Callback;
@@ -95,22 +93,10 @@ public class Completion extends RadosBase implements Closeable {
 
         // Create the completion object.
         if (notifyOnComplete || notifyOnSafe) {
-            handleReturnCode(new Callable<Integer>() {
-                @Override
-                public Integer call() throws Exception {
-                    // The safe callback is deprecated in librados; the complete callback fires both.
-                    return rados.rados_aio_create_completion(Pointer.createConstant((long) id), completeCallback,
-                            null, pointerByReference);
-                }
-            }, "Failed to create completion with callbacks");
+            handleReturnCode(() -> rados.rados_aio_create_completion(Pointer.createConstant((long) id), completeCallback, null, pointerByReference), "Failed to create completion with callbacks");
 
         } else {
-            handleReturnCode(new Callable<Integer>() {
-                @Override
-                public Integer call() throws Exception {
-                    return rados.rados_aio_create_completion(null, null, null, pointerByReference);
-                }
-            }, "Failed to create completion");
+            handleReturnCode(() -> rados.rados_aio_create_completion(null, null, null, pointerByReference), "Failed to create completion");
         }
         pointer = pointerByReference.getValue();
     }
@@ -122,12 +108,7 @@ public class Completion extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void waitForComplete() throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_aio_wait_for_complete(getPointer());
-            }
-        }, "Failed to wait for AIO completion");
+        handleReturnCode(() -> rados.rados_aio_wait_for_complete(getPointer()), "Failed to wait for AIO completion");
     }
 
     /**
@@ -166,8 +147,11 @@ public class Completion extends RadosBase implements Closeable {
      * immediately if the operation is not acked and committed.
      */
     @Override
-    public void close() throws IOException {
-        rados.rados_aio_release(getPointer());
+    public void close() {
+        if (pointer != null) {
+            rados.rados_aio_release(pointer);
+            pointer = null;
+        }
         if (id > 0) {
             synchronized (completionMap) {
                 completionMap.remove(id);

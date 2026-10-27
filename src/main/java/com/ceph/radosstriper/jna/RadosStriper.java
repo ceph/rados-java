@@ -17,6 +17,8 @@
  */
 package com.ceph.radosstriper.jna;
 
+import java.util.Collections;
+
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
@@ -24,7 +26,8 @@ import com.sun.jna.ptr.LongByReference;
 
 public interface RadosStriper extends Library {
 
-    RadosStriper INSTANCE = (RadosStriper) Native.loadLibrary("radosstriper", RadosStriper.class);
+    RadosStriper INSTANCE = Native.load("radosstriper", RadosStriper.class,
+            Collections.singletonMap(Library.OPTION_STRING_ENCODING, "UTF-8"));
 
 
     int rados_striper_create(Pointer ioctx, Pointer striper);

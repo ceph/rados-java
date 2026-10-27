@@ -20,14 +20,13 @@
 package com.ceph.rados;
 
 import static com.ceph.rados.Library.rados;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 import com.ceph.rados.exceptions.RadosException;
 import com.ceph.rados.jna.RadosObjectInfo;
@@ -97,12 +96,7 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     @Deprecated
     public void setAuid(final long auid) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_pool_set_auid(getPointer(), auid);
-            }
-        }, "Failed to set the auid to %s", auid);
+        handleReturnCode(() -> rados.rados_ioctx_pool_set_auid(getPointer(), auid), "Failed to set the auid to %s", auid);
     }
 
     /**
@@ -116,12 +110,7 @@ public class IoCTX extends RadosBase implements Closeable {
     public long getAuid() throws RadosException {
         final LongByReference auid = new LongByReference();
 
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_pool_get_auid(getPointer(), auid);
-            }
-        }, "Failed to get the auid");
+        handleReturnCode(() -> rados.rados_ioctx_pool_get_auid(getPointer(), auid), "Failed to get the auid");
 
         return auid.getValue();
     }
@@ -134,13 +123,8 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     public String getPoolName() throws RadosException {
         final byte[] buf = new byte[1024];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_get_pool_name(getPointer(), buf, buf.length);
-            }
-        }, "Failed to get the pool name");
-        return Native.toString(buf);
+        handleReturnCode(() -> rados.rados_ioctx_get_pool_name(getPointer(), buf, buf.length), "Failed to get the pool name");
+        return Native.toString(buf, "UTF-8");
     }
 
     /**
@@ -164,15 +148,10 @@ public class IoCTX extends RadosBase implements Closeable {
         List<String> objects = new ArrayList<String>();
         final Pointer list = new Memory(Native.POINTER_SIZE);
 
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_nobjects_list_open(getPointer(), list);
-            }
-        }, "Failed starting to list all objects");
+        handleReturnCode(() -> rados.rados_nobjects_list_open(getPointer(), list), "Failed starting to list all objects");
 
         while (rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
-            objects.add(entry.getPointer(0).getString(0));
+            objects.add(entry.getPointer(0).getString(0, "UTF-8"));
         }
 
         rados.rados_nobjects_list_close(list.getPointer(0));
@@ -212,12 +191,7 @@ public class IoCTX extends RadosBase implements Closeable {
         if (offset < 0) {
             throw new IllegalArgumentException("Offset shouldn't be a negative value");
         }
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_write(getPointer(), oid, buf, buf.length, offset);
-            }
-        }, "Failed writing %s bytes with offset %s to %s", buf.length, offset, oid);
+        handleReturnCode(() -> rados.rados_write(getPointer(), oid, buf, buf.length, offset), "Failed writing %s bytes with offset %s to %s", buf.length, offset, oid);
     }
 
     /**
@@ -246,12 +220,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void writeFull(final String oid, final byte[] buf, final int len) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_write_full(getPointer(), oid, buf, len);
-            }
-        }, "Failed to write %s bytes to %s", len, oid);
+        handleReturnCode(() -> rados.rados_write_full(getPointer(), oid, buf, len), "Failed to write %s bytes to %s", len, oid);
     }
 
     /**
@@ -266,7 +235,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void write(String oid, String buf, long offset) throws RadosException {
-        this.write(oid, buf.getBytes(), offset);
+        this.write(oid, buf.getBytes(UTF_8), offset);
     }
 
     /**
@@ -279,7 +248,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void write(String oid, String buf) throws RadosException {
-        this.write(oid, buf.getBytes());
+        this.write(oid, buf.getBytes(UTF_8));
     }
 
     /**
@@ -299,12 +268,7 @@ public class IoCTX extends RadosBase implements Closeable {
         if (offset < 0) {
             throw new IllegalArgumentException("Offset shouldn't be a negative value");
         }
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_aio_write(getPointer(), oid, completion.getPointer(), buf, buf.length, offset);
-            }
-        }, "Failed AIO writing %s bytes with offset %s to %s", buf.length, offset, oid);
+        handleReturnCode(() -> rados.rados_aio_write(getPointer(), oid, completion.getPointer(), buf, buf.length, offset), "Failed AIO writing %s bytes with offset %s to %s", buf.length, offset, oid);
     }
 
     /**
@@ -337,12 +301,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void aioWriteFull(final String oid, final Completion completion, final byte[] buf, final int len) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_aio_write_full(getPointer(), oid, completion.getPointer(), buf, len);
-            }
-        }, "Failed to AIO write %s bytes to %s", len, oid);
+        handleReturnCode(() -> rados.rados_aio_write_full(getPointer(), oid, completion.getPointer(), buf, len), "Failed to AIO write %s bytes to %s", len, oid);
     }
 
     /**
@@ -359,7 +318,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void aioWrite(String oid, final Completion completion, String buf, long offset) throws RadosException {
-        this.aioWrite(oid, completion, buf.getBytes(), offset);
+        this.aioWrite(oid, completion, buf.getBytes(UTF_8), offset);
     }
 
     /**
@@ -374,7 +333,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void aioWrite(String oid, final Completion completion, String buf) throws RadosException {
-        this.aioWrite(oid, completion, buf.getBytes());
+        this.aioWrite(oid, completion, buf.getBytes(UTF_8));
     }
 
     /**
@@ -384,12 +343,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void aioFlush() throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_aio_flush(getPointer());
-            }
-        }, "Failed to AIO flush");
+        handleReturnCode(() -> rados.rados_aio_flush(getPointer()), "Failed to AIO flush");
     }
 
     /**
@@ -400,12 +354,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void remove(final String oid) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_remove(getPointer(), oid);
-            }
-        }, "Failed removing object %s", oid);
+        handleReturnCode(() -> rados.rados_remove(getPointer(), oid), "Failed removing object %s", oid);
     }
 
     /**
@@ -431,12 +380,7 @@ public class IoCTX extends RadosBase implements Closeable {
             throw new IllegalArgumentException("Offset shouldn't be a negative value");
         }
 
-        return handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_read(getPointer(), oid, buf, length, offset);
-            }
-        }, "Failed to read object %s using offset %s and length %s", oid, offset, length);
+        return handleReturnCode(() -> rados.rados_read(getPointer(), oid, buf, length, offset), "Failed to read object %s using offset %s and length %s", oid, offset, length);
     }
 
     /**
@@ -454,12 +398,7 @@ public class IoCTX extends RadosBase implements Closeable {
         if (size < 0) {
             throw new IllegalArgumentException("Size shouldn't be a negative value");
         }
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_trunc(getPointer(), oid, size);
-            }
-        }, "Failed resizing objects %s to %s bytes", oid, size);
+        handleReturnCode(() -> rados.rados_trunc(getPointer(), oid, size), "Failed resizing objects %s to %s bytes", oid, size);
     }
 
     /**
@@ -486,12 +425,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void append(final String oid, final byte[] buf, final int len) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_append(getPointer(), oid, buf, len);
-            }
-        }, "Failed appending %s bytes to object %s", len, oid);
+        handleReturnCode(() -> rados.rados_append(getPointer(), oid, buf, len), "Failed appending %s bytes to object %s", len, oid);
     }
 
     /**
@@ -504,7 +438,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void append(String oid, String buf) throws RadosException {
-        this.append(oid, buf.getBytes());
+        this.append(oid, buf.getBytes(UTF_8));
     }
 
     /**
@@ -519,12 +453,7 @@ public class IoCTX extends RadosBase implements Closeable {
     public RadosObjectInfo stat(final String oid) throws RadosException {
         final LongByReference size = new LongByReference();
         final LongByReference mtime = new LongByReference();
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_stat(getPointer(), oid, size, mtime);
-            }
-        }, "Failed performing a stat on object %s", oid);
+        handleReturnCode(() -> rados.rados_stat(getPointer(), oid, size, mtime), "Failed performing a stat on object %s", oid);
         return new RadosObjectInfo(oid, size.getValue(), mtime.getValue());
     }
 
@@ -536,12 +465,7 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     public RadosPoolInfo poolStat() throws RadosException {
         final RadosPoolInfo result = new RadosPoolInfo();
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_pool_stat(getPointer(), result);
-            }
-        }, "Failed retrieving the pool stats");
+        handleReturnCode(() -> rados.rados_ioctx_pool_stat(getPointer(), result), "Failed retrieving the pool stats");
         return result;
     }
 
@@ -553,12 +477,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void snapCreate(final String snapname) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_create(getPointer(), snapname);
-            }
-        }, "Failed to create snapshot %s", snapname);
+        handleReturnCode(() -> rados.rados_ioctx_snap_create(getPointer(), snapname), "Failed to create snapshot %s", snapname);
     }
 
     /**
@@ -569,12 +488,7 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public void snapRemove(final String snapname) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_remove(getPointer(), snapname);
-            }
-        }, "Failed to remove snapshot %s", snapname);
+        handleReturnCode(() -> rados.rados_ioctx_snap_remove(getPointer(), snapname), "Failed to remove snapshot %s", snapname);
     }
 
     /**
@@ -587,12 +501,7 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     public long snapLookup(final String snapname) throws RadosException {
         final LongByReference id = new LongByReference();
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_lookup(getPointer(), snapname, id);
-            }
-        }, "Failed to lookup the ID of snapshot %s", snapname);
+        handleReturnCode(() -> rados.rados_ioctx_snap_lookup(getPointer(), snapname, id), "Failed to lookup the ID of snapshot %s", snapname);
         return id.getValue();
     }
 
@@ -606,13 +515,8 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     public String snapGetName(final long id) throws RadosException {
         final byte[] buf = new byte[512];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_get_name(getPointer(), id, buf, buf.length);
-            }
-        }, "Failed to lookup the name of snapshot %s", id);
-        return new String(buf).trim();
+        handleReturnCode(() -> rados.rados_ioctx_snap_get_name(getPointer(), id, buf, buf.length), "Failed to lookup the name of snapshot %s", id);
+        return new String(buf, UTF_8).trim();
     }
 
     /**
@@ -625,12 +529,7 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     public long snapGetStamp(final long id) throws RadosException {
         final LongByReference time = new LongByReference();
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_get_stamp(getPointer(), id, time);
-            }
-        }, "Failed to retrieve the timestamp of snapshot %s", id);
+        handleReturnCode(() -> rados.rados_ioctx_snap_get_stamp(getPointer(), id, time), "Failed to retrieve the timestamp of snapshot %s", id);
         return time.getValue();
     }
 
@@ -692,14 +591,9 @@ public class IoCTX extends RadosBase implements Closeable {
      */
     public String getExtendedAttribute(final String oid, final String xattrName) throws RadosException {
         final byte[] buf = new byte[EXT_ATTR_MAX_LEN];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_getxattr(getPointer(), oid, xattrName, buf, buf.length);
-            }
-        }, "Failed to get extended attribute %s on %s", xattrName, oid);
+        handleReturnCode(() -> rados.rados_getxattr(getPointer(), oid, xattrName, buf, buf.length), "Failed to get extended attribute %s on %s", xattrName, oid);
         // else...
-        return  Native.toString(buf);
+        return Native.toString(buf, "UTF-8");
     }
 
     /**
@@ -717,17 +611,12 @@ public class IoCTX extends RadosBase implements Closeable {
      *      on failure
      */
     public void setExtendedAttribute(final String oid, final String xattrName, String val) throws IllegalArgumentException, RadosException {
-        final byte[] buf = Native.toByteArray(val);
+        final byte[] buf = val.getBytes(UTF_8);
         if (buf.length > EXT_ATTR_MAX_LEN) {
             throw new IllegalArgumentException( "Length of attribute value must not exceed " + EXT_ATTR_MAX_LEN);
         }
         // else...
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_setxattr(getPointer(), oid, xattrName, buf, buf.length);
-            }
-        }, "Failed to set extended attribute %s on %s", xattrName, oid);
+        handleReturnCode(() -> rados.rados_setxattr(getPointer(), oid, xattrName, buf, buf.length), "Failed to set extended attribute %s on %s", xattrName, oid);
     }
 
     /**
@@ -741,12 +630,7 @@ public class IoCTX extends RadosBase implements Closeable {
      *      on failure
      */
     public void removeExtendedAttribute(final String oid, final String xattrName) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_rmxattr(getPointer(), oid, xattrName);
-            }
-        }, "Failed to remove extended attribute %s from %s", xattrName, oid);
+        handleReturnCode(() -> rados.rados_rmxattr(getPointer(), oid, xattrName), "Failed to remove extended attribute %s from %s", xattrName, oid);
    }
 
    /**
@@ -767,20 +651,15 @@ public class IoCTX extends RadosBase implements Closeable {
         // size_t * in C, so it must be pointer-sized
         final LongByReference attr_value_len = new LongByReference();
 
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_getxattrs(getPointer(), oid, iterator);
-            }
-        }, "Failed starting to list all extended attributes");
+        handleReturnCode(() -> rados.rados_getxattrs(getPointer(), oid, iterator), "Failed starting to list all extended attributes");
 
         // The iterator signals the end by returning a NULL name and a length of 0.
         while (rados.rados_getxattrs_next(iterator.getPointer(0), attr_name, attr_value, attr_value_len) == 0
                 && attr_name.getValue() != null) {
             int length = (int) attr_value_len.getValue();
-            String name = attr_name.getValue().getString(0);
+            String name = attr_name.getValue().getString(0, "UTF-8");
             // Values are not NUL-terminated, so read exactly 'length' bytes.
-            String value = (attr_value.getValue() == null ? "" : new String(attr_value.getValue().getByteArray(0, length)));
+            String value = (attr_value.getValue() == null ? "" : new String(attr_value.getValue().getByteArray(0, length), UTF_8));
             attr_map.put(name, value);
         }
 
@@ -789,8 +668,14 @@ public class IoCTX extends RadosBase implements Closeable {
         return attr_map;
     }
 
+    /**
+     * Destroy the IoCTX. Safe to call more than once.
+     */
     @Override
-    public void close() throws IOException {
-        rados.rados_ioctx_destroy(getPointer());
+    public void close() {
+        if (this.ioCtxPtr != null) {
+            rados.rados_ioctx_destroy(getPointer());
+            this.ioCtxPtr = null;
+        }
     }
 }
