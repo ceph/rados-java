@@ -1,50 +1,24 @@
 #!/usr/bin/make -f
 
 export DH_VERBOSE=1
-export DH_OPTIONS
 
-VERSION := $(shell grep '^    <version>' pom.xml| cut -d'>' -f2 |cut -d'<' -f1)
+VERSION := $(shell grep '^    <version>' pom.xml | cut -d'>' -f2 | cut -d'<' -f1)
+JAVADIR := debian/librados-java/usr/share/java
 
-configure: configure-stamp
-configure-stamp:
-	dh_testdir
-	touch configure-stamp
+%:
+	dh $@
 
-build: build-indep
+override_dh_auto_build:
+	mvn -B -ntp -Dcom.ceph.rados.skipTests=true clean package
 
-build-indep: build-indep-stamp
+override_dh_auto_test:
+	# The tests need a running Ceph cluster, see README.md
 
-build-indep-stamp: configure
-	mvn clean
-	mvn -DskipTests install
-	touch $@
+override_dh_auto_install:
+	install -D -m 0644 target/rados-$(VERSION).jar $(JAVADIR)/rados-$(VERSION).jar
+	dh_link usr/share/java/rados-$(VERSION).jar usr/share/java/rados.jar
+	install -m 0644 target/dependencies/jna*.jar $(JAVADIR)/
 
-clean:
-	dh_testdir
-	dh_testroot
-	rm -f build-arch-stamp build-indep-stamp configure-stamp
-	dh_clean
-
-install:
-	dh_testdir
-	dh_testroot
-	dh_prep -s
-
-	mkdir -p debian/tmp/usr/share/java
-	cp target/rados-${VERSION}.jar debian/tmp/usr/share/java
-	dh_link usr/share/java/rados-${VERSION}.jar usr/share/java/rados.jar
-	cp target/dependencies/jna*.jar debian/tmp/usr/share/java
-
-	dh_installdirs
-	dh_install
-
-binary: install
-	dh_install
-	dh_installchangelogs
-	dh_link
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+override_dh_auto_clean:
+	mvn -B -ntp -q clean || true
+	dh_auto_clean
