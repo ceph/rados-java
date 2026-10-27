@@ -1,12 +1,16 @@
 Source: librados-java
-Section: libs
-Priority: extra
-Maintainer: Wido den Hollander <wido@42on.com>
-Build-Depends: debhelper (>= 7), openjdk-7-jdk | openjdk-8-jdk, maven (>= 3)
-Standards-Version: 3.8.1
-Homepage: http://www.github.com/ceph/rados-java
+Section: java
+Priority: optional
+Maintainer: Wido den Hollander <wido@denhollander.io>
+Build-Depends: debhelper-compat (= 13), default-jdk (>= 2:1.17) | openjdk-17-jdk, maven (>= 3.6)
+Standards-Version: 4.7.0
+Homepage: https://github.com/ceph/rados-java
+Rules-Requires-Root: no
 
 Package: librados-java
 Architecture: all
-Depends: librados2 (>= 0.80), librbd1 (>= 0.80)
-Description: Java JNA bindings for librados and librbd
+Depends: ${misc:Depends}, default-jre-headless (>= 2:1.17) | java17-runtime-headless, librados2 (>= 14.2), librbd1 (>= 14.2), libradosstriper1 (>= 14.2)
+Description: Java JNA bindings for librados, librbd and libradosstriper
+ Java bindings for the Ceph RADOS object store client library (librados),
+ the RADOS block device library (librbd) and libradosstriper, implemented
+ with JNA so no native build against the Ceph headers is required.

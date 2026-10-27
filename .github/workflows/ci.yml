@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build:
+    name: Build and unit tests (JDK ${{ matrix.java }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [17, 21]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Build, run the cluster-free unit tests and generate Javadoc
+        run: >-
+          ./mvnw -B -ntp
+          -Dtest='RadosBaseTest,ErrorCodeTest'
+          -Dsurefire.failIfNoSpecifiedTests=false
+          verify javadoc:javadoc
+
+  integration:
+    name: Integration tests against a MicroCeph cluster
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Install librados, librbd and libradosstriper
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends librados2 librbd1 libradosstriper1
+      - name: Bootstrap a single-node Ceph cluster
+        run: sudo src/test/scripts/microceph-setup.sh
+      - name: Run all tests
+        run: ./mvnw -B -ntp test
+      - name: Cluster status on failure
+        if: failure()
+        run: sudo microceph.ceph -s || true

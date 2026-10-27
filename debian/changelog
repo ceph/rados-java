@@ -1,3 +1,13 @@
+librados-java (1:0.7.0-1) unstable; urgency=medium
+
+  * New upstream release 0.7.0 (the pom.xml version); an epoch is needed
+    because the previous Debian version was 1.0.
+  * Bindings fixed against the current librados C API (Nautilus+).
+  * Java 17 baseline, JNA 5.17, JUnit 5.
+  * Modern debhelper (compat 13) packaging.
+
+ -- Wido den Hollander <wido@denhollander.io>  Tue, 27 Oct 2026 08:50:07 +0000
+
 librados-java (1.0) unstable; urgency=low
 
   * Release of version 1.0
