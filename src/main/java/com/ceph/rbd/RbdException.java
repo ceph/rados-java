@@ -20,7 +20,11 @@ package com.ceph.rbd;
 
 import java.io.IOException;
 
+import com.ceph.rados.exceptions.ErrorCode;
+
 public class RbdException extends IOException {
+
+    private static final long serialVersionUID = 1L;
 
     protected int returnValue;
 
@@ -43,8 +47,16 @@ public class RbdException extends IOException {
      *         The return value of the rados_ call
      */
     public RbdException(String message, int returnValue) {
-        super(message);
+        super(describe(message, returnValue));
         this.returnValue = returnValue;
+    }
+
+    private static String describe(String message, int returnValue) {
+        ErrorCode code = ErrorCode.getEnum(returnValue);
+        if (code != null) {
+            return String.format("%s; %s: %s (%d)", message, code.name(), code.getErrorMessage(), returnValue);
+        }
+        return String.format("%s; error code: %d", message, returnValue);
     }
 
     /**

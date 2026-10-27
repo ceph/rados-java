@@ -29,17 +29,18 @@ import com.sun.jna.Pointer;
 import static com.ceph.rados.Library.rados;
 
 /**
- * Used by 
+ * Iterates over the objects in a pool in batches of at most {@code limit}
+ * entries. Obtained via {@link IoCTX#listObjectsPartial(int)}.
  */
-public class ListCtx {
-    Pointer list;
-    String [] ids;
-    int size;
-    int limit;
-    
+public class ListCtx implements AutoCloseable {
+    private Pointer list;
+    private final String[] ids;
+    private int size;
+    private final int limit;
+
     /**
-     * @param limit
-     * @param list
+     * @param limit maximum number of objects returned per call to nextObjects()
+     * @param list  pointer to the rados_list_ctx_t handle
      */
     protected ListCtx(int limit, Pointer list) {
         this.limit = limit;
@@ -47,7 +48,7 @@ public class ListCtx {
         this.list = list;
         this.size = 0;
     }
-    
+
     /**
      * List a subset of objects in a pool
      *
@@ -55,27 +56,13 @@ public class ListCtx {
      * @throws RadosException
      */
     public int nextObjects() throws RadosException {
-        if (list == null) {
-            return 0;
-        }
-        Pointer entry = new Memory(Native.POINTER_SIZE);
-        int i = 0;
-        while (i < limit && rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
-            ids[i] = entry.getPointer(0).getString(0);
-            i++;
-        }
-        if (i < limit) {
-            // closing it
-            rados.rados_nobjects_list_close(list.getPointer(0));
-            list = null;
-        }
-        this.size = i;
-        return this.size;
+        return nextObjects(0);
     }
+
     /**
-     * List a subset of objects in a pool after skipping a set of ids
+     * List a subset of objects in a pool skipping the first 'skip' objects
      *
-     * @param skip the number of skipped element
+     * @param skip number of objects to skip
      * @return the number of ids get or 0 when the end of the list is reached
      * @throws RadosException
      */
@@ -90,20 +77,19 @@ public class ListCtx {
         }
         int i = 0;
         while (i < limit && rados.rados_nobjects_list_next(list.getPointer(0), entry, null, null) == 0) {
-            ids[i] = entry.getPointer(0).getString(0);
+            ids[i] = entry.getPointer(0).getString(0, "UTF-8");
             i++;
         }
         if (i < limit) {
-            // closing it
-            rados.rados_nobjects_list_close(list.getPointer(0));
-            list = null;
+            // end of the listing reached
+            close();
         }
         this.size = i;
         return this.size;
     }
+
     /**
-     * 
-     * @return size of the returned Array
+     * @return the number of objects returned by the last call to nextObjects()
      */
     public int size() {
         if (list == null) {
@@ -111,16 +97,18 @@ public class ListCtx {
         }
         return this.size;
     }
+
     /**
-     * 
-     * @return the Array of ids (limit by size and by the last call to nextObjects)
+     * @return the objects returned by the last call to nextObjects()
      */
     public String[] getObjects() {
         return Arrays.copyOf(this.ids, this.size);
     }
+
     /**
-     * Close the underlying pointer to list of objects
+     * Close the listing. Safe to call more than once.
      */
+    @Override
     public void close() {
         if (list != null) {
             rados.rados_nobjects_list_close(list.getPointer(0));

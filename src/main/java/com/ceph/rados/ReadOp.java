@@ -24,7 +24,6 @@ package com.ceph.rados;
 import static com.ceph.rados.Library.rados;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.Callable;
 
 import com.ceph.rados.exceptions.RadosException;
 
@@ -113,16 +112,11 @@ public class ReadOp extends RadosBase implements AutoCloseable {
      * 
      * @param oid the name of the object to operate on
      * @param flags the flags for the operation
-     * @return rados_read_op_operate return value
-     * @see librados operation flags
+     *              (see the OPERATION_* constants in {@link Rados})
+     * @throws RadosException if rados_read_op_operate() fails
      */
     public void operate(final String oid, final int flags) throws RadosException {
-        handleReturnCode(new Callable<Number>() {
-            @Override
-            public Number call() throws Exception {
-                return rados.rados_read_op_operate(readOpPtr, ioctxPtr, oid, flags);
-            }
-        }, "ReadOp.operate(%s, %d)", oid, flags);
+        handleReturnCode(() -> rados.rados_read_op_operate(readOpPtr, ioctxPtr, oid, flags), "ReadOp.operate(%s, %d)", oid, flags);
     }
 
     @Override

@@ -26,6 +26,7 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 
 import static com.ceph.rbd.Library.rbd;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Rbd {
 
@@ -210,7 +211,7 @@ public class Rbd {
 			}
 		}
 
-		return new String(names).split("\0");
+		return new String(names, UTF_8).split("\0");
 	}
 
     /**

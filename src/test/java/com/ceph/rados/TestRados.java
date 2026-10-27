@@ -35,15 +35,16 @@ import java.util.Random;
 
 import com.sun.jna.Pointer;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public final class TestRados {
 
@@ -59,7 +60,7 @@ public final class TestRados {
     private static IoCTX ioctx;
 
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
         rados = new Rados(ID);
         rados.confReadFile(new File(CONFIG_FILE));
@@ -71,10 +72,10 @@ public final class TestRados {
         }
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
-        rados.shutDown();
         rados.ioCtxDestroy(ioctx);
+        rados.shutDown();
     }
 
     /**
@@ -85,7 +86,7 @@ public final class TestRados {
     public void testGetVersion() {
         int[] version = Rados.getVersion();
         assertEquals(3, version.length);
-        assertTrue("Expected librados major version >= 3", version[0] >= 3);
+        assertTrue(version[0] >= 3, "Expected librados major version >= 3");
         assertTrue(version[1] >= 0);
         assertTrue(version[2] >= 0);
     }
@@ -104,24 +105,26 @@ public final class TestRados {
         assertEquals(key, rados.confGet("key"));
     }
 
-    @Test(expected = RadosException.class)
+    @Test
     public void testConfSetInConnectedState() throws Exception {
-        rados.confSet("mon_host", "host.server.lan");
+        assertThrows(RadosException.class, () -> {
+            rados.confSet("mon_host", "host.server.lan");
+        });
     }
 
     @Test
     public void testClusterFsid() throws Exception {
-        assertNotNull("The fsid returned was null", rados.clusterFsid());
+        assertNotNull(rados.clusterFsid(), "The fsid returned was null");
     }
 
 
     @Test
     public void testClusterStat() throws Exception {
         RadosClusterInfo stat = rados.clusterStat();
-        assertTrue("Cluster size wasn't greater than 0", stat.kb > 0);
-        assertTrue("KB used was not 0 or greater", stat.kb_used >= 0);
-        assertTrue("KB available was not greater than 0", stat.kb_avail > 0);
-        assertTrue("Number of objects was not 0 or greater", stat.num_objects >= 0);
+        assertTrue(stat.kb > 0, "Cluster size wasn't greater than 0");
+        assertTrue(stat.kb_used >= 0, "KB used was not 0 or greater");
+        assertTrue(stat.kb_avail > 0, "KB available was not greater than 0");
+        assertTrue(stat.num_objects >= 0, "Number of objects was not 0 or greater");
     }
 
 
@@ -129,29 +132,29 @@ public final class TestRados {
     public void testPoolList() throws Exception {
         String[] pools = rados.poolList();
         assertNotNull(pools);
-        assertTrue("We expect at least 1 pool (the one using here)", pools.length >= 1);
+        assertTrue(pools.length >= 1, "We expect at least 1 pool (the one using here)");
     }
 
 
     @Test
     public void testPoolLookup() throws Exception {
         long id = rados.poolLookup(POOL);
-        assertTrue("The POOL ID should be at least 0", id >= 0);
+        assertTrue(id >= 0, "The POOL ID should be at least 0");
 
         String name = rados.poolReverseLookup(id);
-        assertEquals("The POOL names didn't match!", POOL, name);
+        assertEquals(POOL, name, "The POOL names didn't match!");
     }
 
     @Test
     public void testInstanceId() throws Exception {
         long id = rados.getInstanceId();
-        assertTrue("The id should be greater than 0", id > 0);
+        assertTrue(id > 0, "The id should be greater than 0");
     }
 
     @Test
     public void testIoCtxCreateAndDestroyWithID() throws Exception {
         long id = ioctx.getId();
-        assertTrue("The POOL ID should be at least 0", id >= 0);
+        assertTrue(id >= 0, "The POOL ID should be at least 0");
     }
 
     @Test
@@ -175,7 +178,7 @@ public final class TestRados {
         ioctx.write(oid, content);
 
         String[] objects = ioctx.listObjects();
-        assertTrue("We expect at least one object in the POOL", objects.length > 0);
+        assertTrue(objects.length > 0, "We expect at least one object in the POOL");
 
         verifyDocument(oid, content);
 
@@ -183,13 +186,13 @@ public final class TestRados {
          * We simply append the already written data
          */
         ioctx.append(oid, content);
-        assertEquals("The size doesn't match after the append", content.length * 2, ioctx.stat(oid).getSize());
+        assertEquals(content.length * 2, ioctx.stat(oid).getSize(), "The size doesn't match after the append");
 
         /**
          * We now resize the object to it's original size
          */
         ioctx.truncate(oid, content.length);
-        assertEquals("The size doesn't match after the truncate", content.length, ioctx.stat(oid).getSize());
+        assertEquals(content.length, ioctx.stat(oid).getSize(), "The size doesn't match after the truncate");
 
         ioctx.remove(oid);
     }
@@ -217,7 +220,7 @@ public final class TestRados {
             ioctx.append(oid, buffer, buffer.length / 2);
 
             int expectedFileSize = buffer.length + buffer.length / 2;
-            assertEquals("The size doesn't match after the append", expectedFileSize, ioctx.stat(oid).getSize());
+            assertEquals(expectedFileSize, ioctx.stat(oid).getSize(), "The size doesn't match after the append");
 
             byte[] readBuffer = new byte[expectedFileSize];
             ioctx.read(oid, expectedFileSize, 0, readBuffer);
@@ -248,13 +251,13 @@ public final class TestRados {
             ioctx.writeFull(oid, content, content.length);
 
             String[] objects = ioctx.listObjects();
-            assertTrue("We expect at least one object in the POOL", objects.length > 0);
+            assertTrue(objects.length > 0, "We expect at least one object in the POOL");
 
             verifyDocument(oid, content);
 
             // only write the first 4 bytes
             ioctx.writeFull(oid, content, 4);
-            assertEquals("The size doesn't match after the smaller writeFull", 4, ioctx.stat(oid).getSize());
+            assertEquals(4, ioctx.stat(oid).getSize(), "The size doesn't match after the smaller writeFull");
 
             verifyDocument(oid, Arrays.copyOf(content, 4));
         } finally {
@@ -268,12 +271,12 @@ public final class TestRados {
         assertEquals(len, content.length);
         RadosObjectInfo info = ioctx.stat(oid);
 
-        assertEquals("The object names didn't match", oid, info.getOid());
-        assertEquals("The size of what we wrote doesn't match with the stat", content.length, info.getSize());
-        assertTrue("The content we read was different from what we wrote", Arrays.equals(content, buf));
+        assertEquals(oid, info.getOid(), "The object names didn't match");
+        assertEquals(content.length, info.getSize(), "The size of what we wrote doesn't match with the stat");
+        assertTrue(Arrays.equals(content, buf), "The content we read was different from what we wrote");
 
         long now = System.currentTimeMillis() / 1000;
-        assertFalse("The mtime was in the future", now < info.getMtime());
+        assertFalse(now < info.getMtime(), "The mtime was in the future");
     }
 
     private void cleanupObject(Rados r, IoCTX io, String oid) throws RadosException {
@@ -307,12 +310,12 @@ public final class TestRados {
 
         ioctx.snapRemove(snapname);
 
-        assertTrue("There should at least be one snapshot", snaps.length >= 1);
-        assertEquals("The snapshot names didn't match", snapname, snapnamebuf);
+        assertTrue(snaps.length >= 1, "There should at least be one snapshot");
+        assertEquals(snapname, snapnamebuf, "The snapshot names didn't match");
 
         long now = System.currentTimeMillis() / 1000;
             /* Add 5 seconds to deal with clock differences */
-        assertTrue("The timestamp was in the future. Clocks synced?", (now + 5) >= time);
+        assertTrue((now + 5) >= time, "The timestamp was in the future. Clocks synced?");
     }
 
     @Test
@@ -416,55 +419,55 @@ public final class TestRados {
             }
 
             allOids = ioctx.listObjects();
-            assertTrue("Global number of items should be " + nb + ", but is " + allOids.length, allOids.length == nb);
+            assertTrue(allOids.length == nb, "Global number of items should be " + nb + ", but is " + allOids.length);
 
             // Check reading all items in 10 parts
             ListCtx listCtx = ioctx.listObjectsPartial(nb/10);
-            assertTrue("We expect the list to have right now a size of 0", listCtx.size() == 0);
+            assertTrue(listCtx.size() == 0, "We expect the list to have right now a size of 0");
             int totalRead = 0;
             int subnb = 0;
             for (int i = 0; i < 10; i++) {
                 subnb = listCtx.nextObjects();
                 totalRead += subnb;
-                assertTrue("We expect the list to have right now a size of " + (nb / 10), listCtx.size() == nb / 10);
-                assertTrue("We expect to have a correct oid", listCtx.getObjects()[0].startsWith(oid));
+                assertTrue(listCtx.size() == nb / 10, "We expect the list to have right now a size of " + (nb / 10));
+                assertTrue(listCtx.getObjects()[0].startsWith(oid), "We expect to have a correct oid");
                 String []oids = listCtx.getObjects();
-                assertTrue("We expect the subset to have right now a size of " + (nb / 10), oids.length == nb / 10);
+                assertTrue(oids.length == nb / 10, "We expect the subset to have right now a size of " + (nb / 10));
             }
             subnb = listCtx.nextObjects();
-            assertTrue("We expect the list to have right now a size of " + 0, listCtx.size() == 0);
+            assertTrue(listCtx.size() == 0, "We expect the list to have right now a size of " + 0);
             totalRead += subnb;
-            assertTrue("We expect the number of read items to be " + nb, totalRead == nb);
+            assertTrue(totalRead == nb, "We expect the number of read items to be " + nb);
             listCtx.close();
 
             // Check reading half items in 5 parts (other half being ignored)
             listCtx = ioctx.listObjectsPartial(nb/10);
-            assertTrue("We expect the list to have right now a size of 0", listCtx.size() == 0);
+            assertTrue(listCtx.size() == 0, "We expect the list to have right now a size of 0");
             totalRead = 0;
             for (int i = 0; i < 5; i++) {
                 subnb = listCtx.nextObjects(nb / 10);
                 totalRead += subnb + (nb / 10);
-                assertTrue("We expect the list to have right now a size of " + (nb / 10), listCtx.size() == nb / 10);
-                assertTrue("We expect to have a correct oid", listCtx.getObjects()[0].startsWith(oid));
+                assertTrue(listCtx.size() == nb / 10, "We expect the list to have right now a size of " + (nb / 10));
+                assertTrue(listCtx.getObjects()[0].startsWith(oid), "We expect to have a correct oid");
                 String []oids = listCtx.getObjects();
-                assertTrue("We expect the subset to have right now a size of " + (nb / 10), oids.length == nb / 10);
+                assertTrue(oids.length == nb / 10, "We expect the subset to have right now a size of " + (nb / 10));
             }
             subnb = listCtx.nextObjects();
-            assertTrue("We expect the list to have right now a size of " + 0, listCtx.size() == 0);
+            assertTrue(listCtx.size() == 0, "We expect the list to have right now a size of " + 0);
             totalRead += subnb;
-            assertTrue("We expect the number of read items to be " + nb, totalRead == nb);
+            assertTrue(totalRead == nb, "We expect the number of read items to be " + nb);
             listCtx.close();
 
             // Check reading some items then close and then check listCtx is empty
             listCtx = ioctx.listObjectsPartial(nb/10);
-            assertTrue("We expect the list to have right now a size of 0", listCtx.size() == 0);
+            assertTrue(listCtx.size() == 0, "We expect the list to have right now a size of 0");
             totalRead = 0;
             subnb = listCtx.nextObjects(nb / 10);
-            assertTrue("We expect the list to have right now a size of " + (nb / 10), listCtx.size() == nb / 10);
-            assertTrue("We expect to have a correct oid", listCtx.getObjects()[0].startsWith(oid));
+            assertTrue(listCtx.size() == nb / 10, "We expect the list to have right now a size of " + (nb / 10));
+            assertTrue(listCtx.getObjects()[0].startsWith(oid), "We expect to have a correct oid");
             listCtx.close();
             subnb = listCtx.nextObjects();
-            assertTrue("We expect the list to have right now a size of " + 0, listCtx.size() == 0);
+            assertTrue(listCtx.size() == 0, "We expect the list to have right now a size of " + 0);
         } catch (RadosException e) {
             fail(e.getMessage() + ": " + e.getReturnValue());
         }
@@ -497,7 +500,7 @@ public final class TestRados {
 
             // try to read the attribute's value
             String readAttributeValue = ioctx.getExtendedAttribute(oid, xattrName);
-            assertEquals("The extended attribute data that was read is different from what was set: ", xattrData, readAttributeValue);
+            assertEquals(xattrData, readAttributeValue, "The extended attribute data that was read is different from what was set: ");
 
             // remove the extended attribute from the object
             ioctx.removeExtendedAttribute(oid, xattrName);
@@ -509,8 +512,7 @@ public final class TestRados {
                         + "' so RadosException with error code " + ErrorCode.ENODATA + " is expected.");
             }
             catch (RadosException e) {
-                assertEquals("We didn't get the expected error code after trying to access non-existent attribute: ",
-                        ErrorCode.ENODATA.getErrorCode(), e.getReturnValue());
+                assertEquals(ErrorCode.ENODATA.getErrorCode(), e.getReturnValue(), "We didn't get the expected error code after trying to access non-existent attribute: ");
             }
         } catch (RadosException e) {
             fail(e.getMessage() + ": " + e.getReturnValue());
@@ -540,7 +542,7 @@ public final class TestRados {
             // try to read back the attributes from the object
             Map<String, String> read_back_attr_map = ioctx.getExtendedAttributes(oid);
 
-            assertEquals("The extended attributes data that was read is different from what was set: ", attr_map, read_back_attr_map);
+            assertEquals(attr_map, read_back_attr_map, "The extended attributes data that was read is different from what was set: ");
         } catch (RadosException e) {
             fail(e.getMessage() + ": " + e.getReturnValue());
         }

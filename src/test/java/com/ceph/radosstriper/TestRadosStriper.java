@@ -3,12 +3,12 @@ package com.ceph.radosstriper;
 
 import com.ceph.rados.IoCTX;
 import com.ceph.rados.Rados;
-import org.junit.AfterClass;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Random;
@@ -25,7 +25,7 @@ public class TestRadosStriper {
     private static RadosStriper rados;
     private static IoCTXStriper ioctx;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
         rados = new RadosStriper(ID);
         rados.confReadFile(new File(CONFIG_FILE));
@@ -45,7 +45,7 @@ public class TestRadosStriper {
         assertTrue(version[2] >= 0);
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown() throws Exception {
         rados.destroy(ioctx);
         rados.shutDown();
@@ -55,30 +55,30 @@ public class TestRadosStriper {
 
     @Test
     public void testClusterFsid() throws Exception {
-        assertNotNull("The fsid returned was null", rados.clusterFsid());
+        assertNotNull(rados.clusterFsid(), "The fsid returned was null");
     }
 
     @Test
     public void testPoolList() throws Exception {
         String[] pools = rados.poolList();
         assertNotNull(pools);
-        assertTrue("We expect at least 1 pool (the one using here)", pools.length >= 1);
+        assertTrue(pools.length >= 1, "We expect at least 1 pool (the one using here)");
     }
 
 
     @Test
     public void testPoolLookup() throws Exception {
         long id = rados.poolLookup(POOL);
-        assertTrue("The POOL ID should be at least 0", id >= 0);
+        assertTrue(id >= 0, "The POOL ID should be at least 0");
 
         String name = rados.poolReverseLookup(id);
-        assertEquals("The POOL names didn't match!", POOL, name);
+        assertEquals(POOL, name, "The POOL names didn't match!");
     }
 
     @Test
     public void testInstanceId() throws Exception {
         long id = rados.getInstanceId();
-        assertTrue("The id should be greater than 0", id > 0);
+        assertTrue(id > 0, "The id should be greater than 0");
     }
 
     /**
@@ -100,13 +100,13 @@ public class TestRadosStriper {
          * We simply append the already written data
          */
         ioctx.append(oid, content);
-        assertEquals("The size doesn't match after the append", content.length * 2, ioctx.stat(oid).getSize());
+        assertEquals(content.length * 2, ioctx.stat(oid).getSize(), "The size doesn't match after the append");
 
         /**
          * We now resize the object to it's original size
          */
         ioctx.truncate(oid, content.length);
-        assertEquals("The size doesn't match after the truncate", content.length, ioctx.stat(oid).getSize());
+        assertEquals(content.length, ioctx.stat(oid).getSize(), "The size doesn't match after the truncate");
 
         ioctx.remove(oid);
     }
@@ -134,7 +134,7 @@ public class TestRadosStriper {
             ioctx.append(oid, buffer, buffer.length / 2);
 
             int expectedFileSize = buffer.length + buffer.length / 2;
-            assertEquals("The size doesn't match after the append", expectedFileSize, ioctx.stat(oid).getSize());
+            assertEquals(expectedFileSize, ioctx.stat(oid).getSize(), "The size doesn't match after the append");
 
             byte[] readBuffer = new byte[expectedFileSize];
             ioctx.read(oid, expectedFileSize, 0, readBuffer);
@@ -166,7 +166,7 @@ public class TestRadosStriper {
         /**
          * We now check for expected size
          */
-        assertEquals("The size doesn't match length param", write_len, ioctx.stat(oid).getSize());
+        assertEquals(write_len, ioctx.stat(oid).getSize(), "The size doesn't match length param");
 
         ioctx.remove(oid);
     }

@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Arrays;
 
 import static com.ceph.rbd.Library.rbd;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.sun.jna.NativeLong;
 
 public class RbdImage implements Closeable {
@@ -365,8 +366,8 @@ public class RbdImage implements Closeable {
 
 			if (childCount > 0) {
 				// Gather pool names and image names
-				String[] poolNames = new String(pools).split("\0");
-				String[] imageNames = new String(images).split("\0");
+				String[] poolNames = new String(pools, UTF_8).split("\0");
+				String[] imageNames = new String(images, UTF_8).split("\0");
 
 				if (poolNames.length != imageNames.length) {
 					throw new RbdException("Mismatch between number of pools and images, pools = " + poolNames.length + ", images = " + imageNames.length);
@@ -381,7 +382,7 @@ public class RbdImage implements Closeable {
 			return poolImageList;
 		} finally {
 			// Un-set the snapshot
-			rbd.rbd_snap_set(this.getPointer(), new String());
+			rbd.rbd_snap_set(this.getPointer(), "");
 		}
 	}
 

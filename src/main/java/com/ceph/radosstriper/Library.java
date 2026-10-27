@@ -18,66 +18,13 @@
 
 package com.ceph.radosstriper;
 
-
 import com.ceph.radosstriper.jna.RadosStriper;
-import com.sun.jna.Pointer;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
+/**
+ * Holds the JNA instance of libradosstriper used by this package.
+ */
 final class Library {
-    final static RadosStriper rados;
+    static final RadosStriper rados = RadosStriper.INSTANCE;
 
-    static {
-        rados = RadosStriper.INSTANCE;
-    }
-
-    private Library() {
-    }
-
-    /**
-     * Free memory pointed to by ptr.
-     */
-    static void free(Pointer ptr) {
-        Pointer.nativeValue(ptr, 0L);
-    }
-
-    /**
-     * Convert the data pointed to by {@code ptr} to a String.
-     */
-    static String getString(Pointer ptr) {
-        final long len = ptr.indexOf(0, (byte) 0);
-        assert (len != -1) : "C-Strings must be \\0 terminated.";
-
-        final byte[] data = ptr.getByteArray(0, (int) len);
-        return new String(data, UTF_8);
-    }
-
-    /**
-     * Calls {@link #toStringArray(Pointer[], int)}.
-     */
-    static String[] toStringArray(Pointer[] ptrArr) {
-        return toStringArray(ptrArr, ptrArr.length);
-    }
-
-    /**
-     * Convert the given array of native pointers to "char" in
-     * UTF-8 encoding to an array of Strings.
-     * <p>
-     * note The memory used by the elements of the original array
-     * is freed and ptrArr is modified.
-     */
-    static String[] toStringArray(Pointer[] ptrArr, final int size) {
-        try {
-            final String[] result = new String[size];
-            for (int i = 0; i < size; ++i) {
-                result[i] = Library.getString(ptrArr[i]);
-            }
-            return result;
-        } finally {
-            for (int i = 0; i < size; ++i) {
-                Library.free(ptrArr[i]);
-                ptrArr[i] = null;
-            }
-        }
-    }
+    private Library() {}
 }

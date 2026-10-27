@@ -22,6 +22,8 @@ import java.io.IOException;
 
 public class RadosException extends IOException {
 
+    private static final long serialVersionUID = 1L;
+
     protected int returnValue;
 
     /**

@@ -29,12 +29,12 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 
 import java.io.File;
-import java.util.concurrent.Callable;
+import java.lang.ref.Cleaner;
 
 import static com.ceph.rados.Library.rados;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class Rados extends RadosBase {
+public class Rados extends RadosBase implements AutoCloseable {
     /**
      * flags for ReadOp.operate and (maybe later) WriteOp.operate
      * See librados operate flags for more information
@@ -48,7 +48,31 @@ public class Rados extends RadosBase {
     public static final int OPERATION_IGNORE_OVERLAY     = 32;
     public static final int OPERATION_FULL_TRY           = 64;
 
+    private static final Cleaner CLEANER = Cleaner.create();
+
+    /**
+     * Owns the native cluster handle. Kept separate from the Rados instance so
+     * the Cleaner can release the handle after the Rados object becomes
+     * unreachable without close() or shutDown() having been called.
+     */
+    private static final class ClusterHandle implements Runnable {
+        private Pointer ptr;
+
+        ClusterHandle(Pointer ptr) {
+            this.ptr = ptr;
+        }
+
+        @Override
+        public synchronized void run() {
+            if (ptr != null) {
+                rados.rados_shutdown(ptr);
+                ptr = null;
+            }
+        }
+    }
+
     protected Pointer clusterPtr;
+    private final Cleaner.Cleanable cleanable;
     private boolean connected;
 
     /**
@@ -61,6 +85,7 @@ public class Rados extends RadosBase {
         PointerByReference clusterPtr = new PointerByReference();
         rados.rados_create(clusterPtr, id);
         this.clusterPtr = clusterPtr.getValue();
+        this.cleanable = CLEANER.register(this, new ClusterHandle(this.clusterPtr));
     }
 
 
@@ -76,6 +101,7 @@ public class Rados extends RadosBase {
 		PointerByReference clusterPtr = new PointerByReference();
 		rados.rados_create2(clusterPtr, clustername, name, flags);
 		this.clusterPtr = clusterPtr.getValue();
+		this.cleanable = CLEANER.register(this, new ClusterHandle(this.clusterPtr));
 	}
 
 
@@ -107,12 +133,7 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public void confReadFile(final File file) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_conf_read_file(clusterPtr, file.getAbsolutePath());
-            }
-        }, "Failed reading configuration file %s", file.getAbsolutePath());
+        handleReturnCode(() -> rados.rados_conf_read_file(clusterPtr, file.getAbsolutePath()), "Failed reading configuration file %s", file.getAbsolutePath());
     }
 
     /**
@@ -125,12 +146,7 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public void confSet(final String option, final String value) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_conf_set(clusterPtr, option, value);
-            }
-        }, "Could not set configuration option %s", option);
+        handleReturnCode(() -> rados.rados_conf_set(clusterPtr, option, value), "Could not set configuration option %s", option);
     }
 
     /**
@@ -143,14 +159,20 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public String confGet(final String option) throws RadosException {
-        final byte[] buf = new byte[256];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_conf_get(clusterPtr, option, buf, buf.length);
+        // Values such as mon_host can easily exceed 256 bytes; librados returns
+        // -ENAMETOOLONG when the buffer is too small, so grow and retry.
+        byte[] buf = new byte[256];
+        while (true) {
+            int r = rados.rados_conf_get(clusterPtr, option, buf, buf.length);
+            if (r == -36 && buf.length < (1 << 20)) { // -ENAMETOOLONG
+                buf = new byte[buf.length * 4];
+                continue;
             }
-        }, "Unable to retrieve the value of configuration option %s", option);
-        return Native.toString(buf);
+            if (r < 0) {
+                throwException(r, String.format("Unable to retrieve the value of configuration option %s", option));
+            }
+            return Native.toString(buf, "UTF-8");
+        }
     }
 
     /**
@@ -159,12 +181,7 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public void connect() throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_connect(clusterPtr);
-            }
-        }, "Failed to connect to the Ceph cluster");
+        handleReturnCode(() -> rados.rados_connect(clusterPtr), "Failed to connect to the Ceph cluster");
         this.connected = true;
     }
 
@@ -178,13 +195,8 @@ public class Rados extends RadosBase {
     public String clusterFsid() throws RadosException {
         this.verifyConnected(true);
         final byte[] buf = new byte[256];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_cluster_fsid(clusterPtr, buf, buf.length);
-            }
-        }, "Failed to retrieve the cluster's fsid");
-        return Native.toString(buf);
+        handleReturnCode(() -> rados.rados_cluster_fsid(clusterPtr, buf, buf.length), "Failed to retrieve the cluster's fsid");
+        return Native.toString(buf, "UTF-8");
     }
 
     /**
@@ -196,12 +208,7 @@ public class Rados extends RadosBase {
     public RadosClusterInfo clusterStat() throws RadosException {
         this.verifyConnected(true);
         final RadosClusterInfo result = new RadosClusterInfo();
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_cluster_stat(clusterPtr, result);
-            }
-        }, "Failed to retrieve cluster's status");
+        handleReturnCode(() -> rados.rados_cluster_stat(clusterPtr, result), "Failed to retrieve cluster's status");
         return result;
     }
 
@@ -214,12 +221,7 @@ public class Rados extends RadosBase {
      */
     public void poolCreate(final String name) throws RadosException {
         this.verifyConnected(true);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_create(clusterPtr, name);
-            }
-        }, "Failed to create pool %s", name);
+        handleReturnCode(() -> rados.rados_pool_create(clusterPtr, name), "Failed to create pool %s", name);
     }
 
     /**
@@ -235,12 +237,7 @@ public class Rados extends RadosBase {
     @Deprecated
     public void poolCreate(final String name, final long auid) throws RadosException {
         this.verifyConnected(true);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_create_with_auid(clusterPtr, name, auid);
-            }
-        }, "Failed to create pool %s with auid %s", name, auid);
+        handleReturnCode(() -> rados.rados_pool_create_with_auid(clusterPtr, name, auid), "Failed to create pool %s with auid %s", name, auid);
     }
 
     /**
@@ -258,12 +255,7 @@ public class Rados extends RadosBase {
     @Deprecated
     public void poolCreate(final String name, final long auid, final long crushrule) throws RadosException {
         this.verifyConnected(true);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_create_with_all(clusterPtr, name, auid, crushrule);
-            }
-        }, "Failed to create pool %s with auid %s and crushrule %s", name, auid, crushrule);
+        handleReturnCode(() -> rados.rados_pool_create_with_all(clusterPtr, name, auid, crushrule), "Failed to create pool %s with auid %s and crushrule %s", name, auid, crushrule);
     }
 
     /**
@@ -277,12 +269,7 @@ public class Rados extends RadosBase {
      */
     public void poolCreateWithCrushRule(final String name, final long crushrule) throws RadosException {
         this.verifyConnected(true);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_create_with_crush_rule(clusterPtr, name, crushrule);
-            }
-        }, "Failed to create pool %s with crushrule %s", name, crushrule);
+        handleReturnCode(() -> rados.rados_pool_create_with_crush_rule(clusterPtr, name, crushrule), "Failed to create pool %s with crushrule %s", name, crushrule);
     }
 
     /**
@@ -294,24 +281,7 @@ public class Rados extends RadosBase {
      */
     public void poolDelete(final String name) throws RadosException {
         this.verifyConnected(true);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_delete(clusterPtr, name);
-            }
-        }, "Failed to delete pool %s", name);
-    }
-
-    /**
-     * Java finalizer to make sure librados is correctly released if shutDown has not been called explicitly.
-     */
-    protected void finalize() throws Throwable {
-        // make sure that librados is correctly released
-        if (this.clusterPtr != null) {
-            rados.rados_shutdown(this.clusterPtr);
-            this.clusterPtr = null;
-        }
-        super.finalize();
+        handleReturnCode(() -> rados.rados_pool_delete(clusterPtr, name), "Failed to delete pool %s", name);
     }
 
     /**
@@ -325,17 +295,12 @@ public class Rados extends RadosBase {
         byte[] temp_buf = new byte[0];
         int len = rados.rados_pool_list(this.clusterPtr, temp_buf, temp_buf.length);
         final byte[] buf = getPoolList(len);
-        return new String(buf).split("\0");
+        return new String(buf, UTF_8).split("\0");
     }
 
     private byte[] getPoolList(int len) throws RadosException {
         final byte[] buf = new byte[len];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_list(clusterPtr, buf, buf.length);
-            }
-        }, "Failed to retrieve list of pools");
+        handleReturnCode(() -> rados.rados_pool_list(clusterPtr, buf, buf.length), "Failed to retrieve list of pools");
         return buf;
     }
 
@@ -348,12 +313,7 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public long poolLookup(final String name) throws RadosException {
-        return handleReturnCode(new Callable<Long>() {
-            @Override
-            public Long call() throws Exception {
-                return rados.rados_pool_lookup(Rados.this.clusterPtr, name);
-            }
-        }, "Failed to retrieve id of the pool");
+        return handleReturnCode(() -> rados.rados_pool_lookup(Rados.this.clusterPtr, name), "Failed to retrieve id of the pool");
     }
 
     /**
@@ -366,13 +326,8 @@ public class Rados extends RadosBase {
      */
     public String poolReverseLookup(final long id) throws RadosException {
         final byte[] buf = new byte[512];
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_pool_reverse_lookup(clusterPtr, id, buf, buf.length);
-            }
-        }, "Failed to fetch name of the pool");
-        return new String(buf).trim();
+        handleReturnCode(() -> rados.rados_pool_reverse_lookup(clusterPtr, id, buf, buf.length), "Failed to fetch name of the pool");
+        return new String(buf, UTF_8).trim();
     }
 
     /**
@@ -385,12 +340,7 @@ public class Rados extends RadosBase {
      */
     public IoCTX ioCtxCreate(final String pool) throws RadosException {
         final Pointer p = new Memory(Native.POINTER_SIZE);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_create(clusterPtr, pool, p);
-            }
-        }, "Failed to create the IoCTX for pool %s", pool);
+        handleReturnCode(() -> rados.rados_ioctx_create(clusterPtr, pool, p), "Failed to create the IoCTX for pool %s", pool);
         return new IoCTX(p);
     }
 
@@ -401,7 +351,7 @@ public class Rados extends RadosBase {
      *             A IoCTX object
      */
     public void ioCtxDestroy(IoCTX io) {
-        rados.rados_ioctx_destroy(io.getPointer());
+        io.close();
     }
 
 
@@ -432,10 +382,18 @@ public class Rados extends RadosBase {
      * Shuts rados down
      */
     public void shutDown() {
-        if (this.clusterPtr != null) {
-            rados.rados_shutdown(this.clusterPtr);
-            this.clusterPtr = null;
-        }
+        // Runs rados_shutdown() at most once, also if the Cleaner already ran.
+        this.cleanable.clean();
+        this.clusterPtr = null;
+        this.connected = false;
+    }
+
+    /**
+     * Shuts rados down, see {@link #shutDown()}.
+     */
+    @Override
+    public void close() {
+        shutDown();
     }
 
     /**

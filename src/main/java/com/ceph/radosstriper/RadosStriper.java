@@ -26,7 +26,6 @@ import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
-import java.util.concurrent.Callable;
 
 public class RadosStriper extends Rados {
     private static final int EXT_ATTR_MAX_LEN = 4096;
@@ -41,16 +40,11 @@ public class RadosStriper extends Rados {
 
     public IoCTXStriper ioCtxCreateStriper(final IoCTX ioCTX) throws RadosException {
         final Pointer p = new Memory(Native.POINTER_SIZE);
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_striper_create(ioCTX.getPointer(), p);
-            }
-        }, "Failed to create the IoCTX Striper");
+        handleReturnCode(() -> rados.rados_striper_create(ioCTX.getPointer(), p), "Failed to create the IoCTX Striper");
         return new IoCTXStriper(p);
     }
 
     public void destroy(IoCTXStriper ioCTXStriper) {
-        rados.rados_striper_destroy(ioCTXStriper.getPointer());
+        ioCTXStriper.close();
     }
 }

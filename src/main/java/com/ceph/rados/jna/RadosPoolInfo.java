@@ -19,9 +19,8 @@
 package com.ceph.rados.jna;
 
 import com.sun.jna.Structure;
-import java.util.List;
-import java.util.Arrays;
 
+@Structure.FieldOrder({"num_bytes", "num_kb", "num_objects", "num_object_clones", "num_object_copies", "num_objects_missing_on_primary", "num_objects_unfound", "num_objects_degraded", "num_rd", "num_rd_kb", "num_wr", "num_wr_kb", "num_user_bytes", "compressed_bytes_orig", "compressed_bytes", "compressed_bytes_alloc"})
 public class RadosPoolInfo extends Structure {
     public long num_bytes;
     public long num_kb;
@@ -44,12 +43,4 @@ public class RadosPoolInfo extends Structure {
     /** bytes allocated at storage for compressed data (Nautilus and later) */
     public long compressed_bytes_alloc;
 
-    protected List getFieldOrder() {
-        return Arrays.asList("num_bytes", "num_kb", "num_objects", "num_object_clones",
-                             "num_object_copies", "num_objects_missing_on_primary",
-                             "num_objects_unfound", "num_objects_degraded",
-                             "num_rd", "num_rd_kb", "num_wr", "num_wr_kb",
-                             "num_user_bytes", "compressed_bytes_orig",
-                             "compressed_bytes", "compressed_bytes_alloc");
-    }
 }
