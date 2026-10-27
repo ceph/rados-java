@@ -78,14 +78,15 @@ public final class TestRados {
     }
 
     /**
-     * This test verifies if we can get the version out of librados
-     * It's currently hardcoded to expect at least 0.48.0
+     * This test verifies if we can get the version out of librados.
+     * LIBRADOS_VER_MAJOR has been 3 since Luminous.
      */
     @Test
     public void testGetVersion() {
         int[] version = Rados.getVersion();
-        assertTrue(version[0] >= 0);
-        assertTrue(version[1] >= 48);
+        assertEquals(3, version.length);
+        assertTrue("Expected librados major version >= 3", version[0] >= 3);
+        assertTrue(version[1] >= 0);
         assertTrue(version[2] >= 0);
     }
 
@@ -151,16 +152,6 @@ public final class TestRados {
     public void testIoCtxCreateAndDestroyWithID() throws Exception {
         long id = ioctx.getId();
         assertTrue("The POOL ID should be at least 0", id >= 0);
-    }
-
-    @Test
-    public void testIoCtxGetSetAuid() throws Exception {
-        long auid = ioctx.getAuid();
-
-        ioctx.setAuid(42);
-        assertEquals("The auid should be 42", 42, ioctx.getAuid());
-
-        ioctx.setAuid(auid); // reset to original
     }
 
     @Test
@@ -297,6 +288,9 @@ public final class TestRados {
     public void testIoCtxPoolStat() throws Exception {
         RadosPoolInfo info = ioctx.poolStat();
         assertTrue(info.num_objects >= 0); // rem: write an object first to make sure!
+        assertTrue(info.num_bytes >= 0);
+        assertTrue(info.num_user_bytes >= 0);
+        assertTrue(info.compressed_bytes_alloc >= 0);
     }
 
     @Test

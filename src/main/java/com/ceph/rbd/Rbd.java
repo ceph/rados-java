@@ -35,15 +35,14 @@ public class Rbd {
     /**
      * Get the librbd version
      *
-     * @return a int array with the minor, major and extra version
+     * @return a int array with the major, minor and extra version
      */
     public static int[] getVersion() {
-        IntByReference minor = new IntByReference();
         IntByReference major = new IntByReference();
+        IntByReference minor = new IntByReference();
         IntByReference extra = new IntByReference();
-        rbd.rbd_version(minor, major, extra);
-        int[] returnValue = {minor.getValue(), major.getValue(), extra.getValue()};
-        return returnValue;
+        rbd.rbd_version(major, minor, extra);
+        return new int[]{major.getValue(), minor.getValue(), extra.getValue()};
     }
 
     public Rbd(IoCTX io) {

@@ -6,6 +6,10 @@ Both RADOS and RBD are implemented in these bindings.
 By using JNA there is no need for building the bindings against any header
 you can use them on any system where JNA and librados are present.
 
+The bindings follow the current librados C API and require Ceph Nautilus (14.2)
+or newer: the `rados_pool_stat_t` struct layout and the deprecated auid calls
+changed in Nautilus.
+
 # Maven
 ## Building
 

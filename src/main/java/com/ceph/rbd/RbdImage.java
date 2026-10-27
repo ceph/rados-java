@@ -358,7 +358,7 @@ public class RbdImage implements Closeable {
             } while (childCount == -34);
 
 			if (childCount < 0) {
-				throw new RbdException("Failed to list snap children", r);
+				throw new RbdException("Failed to list snap children", childCount);
 			}
 
 			List<String> poolImageList = new ArrayList<String>();

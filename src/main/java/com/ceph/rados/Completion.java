@@ -21,6 +21,8 @@ public class Completion extends RadosBase implements Closeable {
     // Instance members
     private boolean safe;
     private boolean complete;
+    private boolean notifyOnComplete;
+    private boolean notifyOnSafe;
 
     // Callback support
     private static Callback completeCallback = new Callback() {
@@ -32,26 +34,18 @@ public class Completion extends RadosBase implements Closeable {
                 completion = completionMap.get(completionId);
             }
 
-            // If the completion has not been closed yet, call the handler.
+            // If the completion has not been closed yet, call the handler(s).
+            // Since Ceph Luminous "complete" and "safe" are the same event, so
+            // the (deprecated) safe callback is driven from the complete callback.
             if (completion != null) {
                 completion.complete = true;
-                completion.onComplete();
-            }
-        }
-    };
-    private static Callback safeCallback = new Callback() {
-        @SuppressWarnings("unused")
-        public void callback(Pointer completionPointer, Pointer callbackContext) throws RadosException {
-            final int completionId = (int) Pointer.nativeValue(callbackContext);
-            Completion completion;
-            synchronized (completionMap) {
-                completion = completionMap.get(completionId);
-            }
-
-            // If the completion has not been closed yet, call the handler.
-            if (completion != null) {
                 completion.safe = true;
-                completion.onSafe();
+                if (completion.notifyOnComplete) {
+                    completion.onComplete();
+                }
+                if (completion.notifyOnSafe) {
+                    completion.onSafe();
+                }
             }
         }
     };
@@ -81,6 +75,8 @@ public class Completion extends RadosBase implements Closeable {
     public Completion(final boolean notifyOnComplete, final boolean notifyOnSafe) throws RadosException {
         super();
         final PointerByReference pointerByReference = new PointerByReference();
+        this.notifyOnComplete = notifyOnComplete;
+        this.notifyOnSafe = notifyOnSafe;
 
         // Generate an ID for this completion.
         synchronized (completionMap) {
@@ -102,8 +98,9 @@ public class Completion extends RadosBase implements Closeable {
             handleReturnCode(new Callable<Integer>() {
                 @Override
                 public Integer call() throws Exception {
-                    return rados.rados_aio_create_completion(Pointer.createConstant((long) id), notifyOnComplete ? completeCallback : null,
-                            notifyOnSafe ? safeCallback : null, pointerByReference);
+                    // The safe callback is deprecated in librados; the complete callback fires both.
+                    return rados.rados_aio_create_completion(Pointer.createConstant((long) id), completeCallback,
+                            null, pointerByReference);
                 }
             }, "Failed to create completion with callbacks");
 
@@ -136,16 +133,14 @@ public class Completion extends RadosBase implements Closeable {
     /**
      * Block until the operation is safe. This means it is on stable storage on all
      * replicas.
-     * 
+     *
+     * @deprecated Since Ceph Luminous "complete" and "safe" are equivalent and
+     *             rados_aio_wait_for_safe() is deprecated. Use {@link #waitForComplete()}.
      * @throws RadosException
      */
+    @Deprecated
     public void waitForSafe() throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_aio_wait_for_safe(getPointer());
-            }
-        }, "Failed to wait for AIO safe");
+        waitForComplete();
     }
 
     /**

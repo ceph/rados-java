@@ -28,6 +28,13 @@ import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 import com.sun.jna.ptr.PointerByReference;
 
+/**
+ * Raw JNA mapping of librados.
+ *
+ * Note: C {@code size_t} parameters are mapped to Java {@code long}, which
+ * assumes an LP64 platform (64-bit Linux). Pointer-sized output parameters
+ * ({@code size_t *}) are mapped to {@link LongByReference} for the same reason.
+ */
 public interface Rados extends Library {
 
     Rados INSTANCE = (Rados) Native.loadLibrary("rados", Rados.class);
@@ -42,7 +49,11 @@ public interface Rados extends Library {
     int rados_cluster_stat(Pointer cluster, RadosClusterInfo result);
     int rados_connect(Pointer cluster);
     int rados_pool_create(Pointer cluster, String name);
+    /** @deprecated auid support was removed from Ceph; librados ignores the auid. */
+    @Deprecated
     int rados_pool_create_with_auid(Pointer cluster, String name, long auid);
+    /** @deprecated auid support was removed from Ceph; use {@link #rados_pool_create_with_crush_rule}. */
+    @Deprecated
     int rados_pool_create_with_all(Pointer cluster, String name, long auid, long crushrule);
     int rados_pool_create_with_crush_rule(Pointer cluster, String name, long crushrule);
     int rados_pool_delete(Pointer cluster, String name);
@@ -55,7 +66,11 @@ public interface Rados extends Library {
     void rados_ioctx_destroy(Pointer ioctx);
     void rados_ioctx_set_namespace(Pointer ioctx, String namespace);
     long rados_ioctx_get_id(Pointer ioctx);
+    /** @deprecated auid support was removed from Ceph; this call has no effect. */
+    @Deprecated
     int rados_ioctx_pool_set_auid(Pointer ioctx, long auid);
+    /** @deprecated auid support was removed from Ceph; this call always reports -1. */
+    @Deprecated
     int rados_ioctx_pool_get_auid(Pointer ioctx, LongByReference auid);
     int rados_ioctx_get_pool_name(Pointer ioctx, byte[] buf, int len);
     void rados_ioctx_locator_set_key(Pointer ioctx, String key);
@@ -64,9 +79,9 @@ public interface Rados extends Library {
     int rados_ioctx_snap_lookup(Pointer ioctx, String snapname, LongByReference id);
     int rados_ioctx_snap_get_name(Pointer ioctx, long id, byte[] buf, long len);
     int rados_ioctx_snap_get_stamp(Pointer ioctx, long id, LongByReference time);
-    int rados_ioctx_snap_list(Pointer ioctx, byte[] buf, int len);
+    int rados_ioctx_snap_list(Pointer ioctx, long[] snaps, int maxlen);
     int rados_nobjects_list_open(Pointer ioctx, Pointer list);
-    int rados_nobjects_list_next(Pointer list, Pointer entry, byte[] key, byte[] nspace);
+    int rados_nobjects_list_next(Pointer list, Pointer entry, PointerByReference key, PointerByReference nspace);
     void rados_nobjects_list_close(Pointer list);
     int rados_write(Pointer ioctx, String oid, byte[] buf, int len, long off);
     int rados_write_full(Pointer ioctx, String oid, byte[] buf, int len);
@@ -74,13 +89,13 @@ public interface Rados extends Library {
     int rados_read(Pointer ioctx, String oid, byte[] buf, int len, long off);
     int rados_remove(Pointer ioctx, String oid);
     int rados_trunc(Pointer ioctx, String oid, long size);
-    int rados_clone_range(Pointer ioctx, String dst, long dst_off, String src, long src_off, long len);
     int rados_stat(Pointer ioctxo, String oi, LongByReference size, LongByReference mtime);
     Pointer rados_create_read_op();
     void rados_release_read_op(Pointer read_op);
     void rados_read_op_read(Pointer read_op, long offset, long len, ByteBuffer direct_buffer, LongByReference bytes_read, IntByReference prval);
     int rados_read_op_operate(Pointer read_op, Pointer ioctx, String oid, int flags);
     int rados_shutdown(Pointer cluster);
+    void rados_buffer_free(Pointer buf);
 
     // Asynchronous I/O
     int rados_aio_create_completion(Pointer callbackContext, Callback callbackComplete, Callback callbackSafe, PointerByReference completion);
@@ -89,18 +104,17 @@ public interface Rados extends Library {
     int rados_aio_write(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length, long offset);
     int rados_aio_write_full(Pointer ioctx, String oid, Pointer completion, byte[] buffer, int length);
     int rados_aio_wait_for_complete(Pointer completion);
-    int rados_aio_wait_for_safe(Pointer completion);
     
     // read, write, remove, iterate extended attributes
     int rados_getxattr(Pointer ioctx, String oid, String xattrName, byte[] buf, long len);
     int rados_setxattr(Pointer ioctx, String oid, String xattrName, byte[] buf, long len);
     int rados_rmxattr(Pointer ioctx, String oid, String xattrName);
     int rados_getxattrs(Pointer ioctx, String oid, Pointer iterator);
-    int rados_getxattrs_next(Pointer iterator, PointerByReference attr_name, PointerByReference attr_value, IntByReference len);
+    int rados_getxattrs_next(Pointer iterator, PointerByReference attr_name, PointerByReference attr_value, LongByReference len);
     int rados_getxattrs_end(Pointer iterator);
 
     // Rados commands
-    int rados_mon_command(Pointer cluster, String[] cmd, int cmdLen, String inbuf, int inbufLen, PointerByReference outBuf, IntByReference outBufLen, PointerByReference statusBuf, IntByReference statusBufLen);
-    int rados_mon_command_target(Pointer cluster, String target, String[] cmd, int cmdLen, String inbuf, int inbufLen, PointerByReference outBuf, IntByReference outBufLen, PointerByReference statusBuf, IntByReference statusBufLen);
-    int rados_osd_command(Pointer cluster, int osdId, String[] cmd, int cmdLen, String inbuf, int inbufLen, PointerByReference outBuf, IntByReference outBufLen, PointerByReference statusBuf, IntByReference statusBufLen);
+    int rados_mon_command(Pointer cluster, String[] cmd, long cmdLen, byte[] inbuf, long inbufLen, PointerByReference outBuf, LongByReference outBufLen, PointerByReference statusBuf, LongByReference statusBufLen);
+    int rados_mon_command_target(Pointer cluster, String target, String[] cmd, long cmdLen, byte[] inbuf, long inbufLen, PointerByReference outBuf, LongByReference outBufLen, PointerByReference statusBuf, LongByReference statusBufLen);
+    int rados_osd_command(Pointer cluster, int osdId, String[] cmd, long cmdLen, byte[] inbuf, long inbufLen, PointerByReference outBuf, LongByReference outBufLen, PointerByReference statusBuf, LongByReference statusBufLen);
 }
