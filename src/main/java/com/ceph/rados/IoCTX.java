@@ -35,7 +35,6 @@ import com.ceph.rados.jna.RadosPoolInfo;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
-import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.LongByReference;
 import com.sun.jna.ptr.PointerByReference;
 
@@ -94,7 +93,9 @@ public class IoCTX extends RadosBase implements Closeable {
      * @param auid
      *           The new auid
      * @throws RadosException
+     * @deprecated auid support was removed from Ceph; this call has no effect.
      */
+    @Deprecated
     public void setAuid(final long auid) throws RadosException {
         handleReturnCode(new Callable<Integer>() {
             @Override
@@ -109,7 +110,9 @@ public class IoCTX extends RadosBase implements Closeable {
      *
      * @return long
      * @throws RadosException
+     * @deprecated auid support was removed from Ceph; this call always returns -1.
      */
+    @Deprecated
     public long getAuid() throws RadosException {
         final LongByReference auid = new LongByReference();
 
@@ -505,36 +508,6 @@ public class IoCTX extends RadosBase implements Closeable {
     }
 
     /**
-    * Efficiently copy a portion of one object to another
-    *
-    * If the underlying filesystem on the OSD supports it, this will be a
-    * copy-on-write clone.
-    *
-    * The src and dest objects must be in the same pg. To ensure this,
-    * the io context should have a locator key set (see IoCTX.locatorSetKey()).
-    *
-    * @param dst
-    *          The destination object
-    * @param dst_off
-    *          The offset at the destination object
-    * @param src
-    *          The source object
-    * @param src_off
-    *          The offset at the source object
-    * @param len
-    *          The amount of bytes to copy
-    * @throws RadosException
-    */
-    public void clone(final String dst, final long dst_off, final String src, final long src_off, final long len) throws RadosException {
-        handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_clone_range(getPointer(), dst, dst_off, src, src_off, len);
-            }
-        }, "Failed to copy %s bytes from %s to %s", len, src, dst);
-    }
-
-    /**
      * Stat an object
      *
      * @param oid
@@ -668,18 +641,24 @@ public class IoCTX extends RadosBase implements Closeable {
      * @throws RadosException
      */
     public Long[] snapList() throws RadosException {
-        final byte[] buf = new byte[512];
-
-        final Integer result = handleReturnCode(new Callable<Integer>() {
-            @Override
-            public Integer call() throws Exception {
-                return rados.rados_ioctx_snap_list(getPointer(), buf, buf.length);
+        // rados_ioctx_snap_list fills an array of rados_snap_t (uint64_t) and
+        // returns the number of snapshots, or -ERANGE when the array is too small.
+        long[] buf = new long[64];
+        int r;
+        while (true) {
+            r = rados.rados_ioctx_snap_list(getPointer(), buf, buf.length);
+            if (r != -34) { // -ERANGE
+                break;
             }
-        }, "Failed to list all snapshots");
+            buf = new long[buf.length * 2];
+        }
+        if (r < 0) {
+            throwException(r, "Failed to list all snapshots");
+        }
 
-        Long[] snaps = new Long[result];
-        for (int i = 0; i < result; i++) {
-            snaps[i] = (long) buf[i];
+        Long[] snaps = new Long[r];
+        for (int i = 0; i < r; i++) {
+            snaps[i] = buf[i];
         }
         return snaps;
     }
@@ -785,7 +764,8 @@ public class IoCTX extends RadosBase implements Closeable {
         final Pointer iterator = new Memory(Native.POINTER_SIZE);
         final PointerByReference attr_name = new PointerByReference();
         final PointerByReference attr_value = new PointerByReference();
-        final IntByReference attr_value_len = new IntByReference();
+        // size_t * in C, so it must be pointer-sized
+        final LongByReference attr_value_len = new LongByReference();
 
         handleReturnCode(new Callable<Integer>() {
             @Override
@@ -794,14 +774,14 @@ public class IoCTX extends RadosBase implements Closeable {
             }
         }, "Failed starting to list all extended attributes");
 
+        // The iterator signals the end by returning a NULL name and a length of 0.
         while (rados.rados_getxattrs_next(iterator.getPointer(0), attr_name, attr_value, attr_value_len) == 0
-                && attr_value_len.getValue() > 0) {
-            int length = attr_value_len.getValue();
-            String name = (attr_name.getValue() == null ? null : new String(attr_name.getValue().getString(0)));
-            String value = (attr_value.getValue() == null ? null : new String(attr_value.getValue().getString(0)));
-            if (length > 0 && name != null && value != null) {
-                attr_map.put(name, value);
-            }
+                && attr_name.getValue() != null) {
+            int length = (int) attr_value_len.getValue();
+            String name = attr_name.getValue().getString(0);
+            // Values are not NUL-terminated, so read exactly 'length' bytes.
+            String value = (attr_value.getValue() == null ? "" : new String(attr_value.getValue().getByteArray(0, length)));
+            attr_map.put(name, value);
         }
 
         rados.rados_getxattrs_end(iterator.getPointer(0));

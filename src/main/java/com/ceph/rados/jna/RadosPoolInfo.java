@@ -35,11 +35,21 @@ public class RadosPoolInfo extends Structure {
     public long num_rd_kb;
     public long num_wr;
     public long num_wr_kb;
+    /** bytes originally provided by the user (Nautilus and later) */
+    public long num_user_bytes;
+    /** bytes passed to compression (Nautilus and later) */
+    public long compressed_bytes_orig;
+    /** bytes after compression (Nautilus and later) */
+    public long compressed_bytes;
+    /** bytes allocated at storage for compressed data (Nautilus and later) */
+    public long compressed_bytes_alloc;
 
     protected List getFieldOrder() {
         return Arrays.asList("num_bytes", "num_kb", "num_objects", "num_object_clones",
                              "num_object_copies", "num_objects_missing_on_primary",
                              "num_objects_unfound", "num_objects_degraded",
-                             "num_rd", "num_rd_kb", "num_wr", "num_wr_kb");
+                             "num_rd", "num_rd_kb", "num_wr", "num_wr_kb",
+                             "num_user_bytes", "compressed_bytes_orig",
+                             "compressed_bytes", "compressed_bytes_alloc");
     }
 }

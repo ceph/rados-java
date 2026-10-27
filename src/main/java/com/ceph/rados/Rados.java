@@ -22,6 +22,7 @@ package com.ceph.rados;
 import com.ceph.rados.exceptions.RadosException;
 import com.ceph.rados.jna.RadosClusterInfo;
 import com.sun.jna.ptr.IntByReference;
+import com.sun.jna.ptr.LongByReference;
 import com.sun.jna.ptr.PointerByReference;
 import com.sun.jna.Pointer;
 import com.sun.jna.Memory;
@@ -31,6 +32,7 @@ import java.io.File;
 import java.util.concurrent.Callable;
 
 import static com.ceph.rados.Library.rados;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Rados extends RadosBase {
     /**
@@ -228,7 +230,9 @@ public class Rados extends RadosBase {
      * @param auid
      *            the owner ID for the new pool
      * @throws RadosException
+     * @deprecated auid support was removed from Ceph; use {@link #poolCreate(String)}.
      */
+    @Deprecated
     public void poolCreate(final String name, final long auid) throws RadosException {
         this.verifyConnected(true);
         handleReturnCode(new Callable<Integer>() {
@@ -249,7 +253,9 @@ public class Rados extends RadosBase {
      * @param crushrule
      *            the crushrule for this pool
      * @throws RadosException
+     * @deprecated auid support was removed from Ceph; use {@link #poolCreateWithCrushRule(String, long)}.
      */
+    @Deprecated
     public void poolCreate(final String name, final long auid, final long crushrule) throws RadosException {
         this.verifyConnected(true);
         handleReturnCode(new Callable<Integer>() {
@@ -258,6 +264,25 @@ public class Rados extends RadosBase {
                 return rados.rados_pool_create_with_all(clusterPtr, name, auid, crushrule);
             }
         }, "Failed to create pool %s with auid %s and crushrule %s", name, auid, crushrule);
+    }
+
+    /**
+     * Create a RADOS pool using a specific CRUSH rule
+     *
+     * @param name
+     *            the name of the pool to be created
+     * @param crushrule
+     *            the CRUSH rule for this pool
+     * @throws RadosException
+     */
+    public void poolCreateWithCrushRule(final String name, final long crushrule) throws RadosException {
+        this.verifyConnected(true);
+        handleReturnCode(new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                return rados.rados_pool_create_with_crush_rule(clusterPtr, name, crushrule);
+            }
+        }, "Failed to create pool %s with crushrule %s", name, crushrule);
     }
 
     /**
@@ -393,14 +418,14 @@ public class Rados extends RadosBase {
     /**
      * Get the librados version
      *
-     * @return a int array with the minor, major and extra version
+     * @return a int array with the major, minor and extra version
      */
     public static int[] getVersion() {
-        IntByReference minor = new IntByReference();
         IntByReference major = new IntByReference();
+        IntByReference minor = new IntByReference();
         IntByReference extra = new IntByReference();
-        rados.rados_version(minor, major, extra);
-        return new int[]{minor.getValue(), major.getValue(), extra.getValue()};
+        rados.rados_version(major, minor, extra);
+        return new int[]{major.getValue(), minor.getValue(), extra.getValue()};
     }
 
     /**
@@ -424,21 +449,15 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public RadosCommandResult executeRadosMonCommand(final String[] commands, final String in) throws RadosException {
+        final byte[] inBuf = toInputBuffer(in);
         final PointerByReference outBuf = new PointerByReference();
-        final IntByReference outBufLen = new IntByReference();
+        final LongByReference outBufLen = new LongByReference();
         final PointerByReference statusBuf = new PointerByReference();
-        final IntByReference statusBufLen = new IntByReference();
+        final LongByReference statusBufLen = new LongByReference();
 
-        int r = rados.rados_mon_command(this.clusterPtr, commands, commands.length, in, in.length(), outBuf, outBufLen, statusBuf, statusBufLen);
+        int r = rados.rados_mon_command(this.clusterPtr, commands, commands.length, inBuf, inBuf.length, outBuf, outBufLen, statusBuf, statusBufLen);
 
-        final String status = (statusBuf.getValue() == null ? "" : new String(statusBuf.getValue().getByteArray(0, statusBufLen.getValue())));
-
-        if (r != 0)
-            throw new RadosException("Error when executing Rados monitor commands: " + status, r);
-
-        final String out = (outBuf.getValue() == null ? "" : new String(outBuf.getValue().getByteArray(0, outBufLen.getValue())));
-
-        return new RadosCommandResult(out, status);
+        return toCommandResult(r, "monitor", outBuf, outBufLen, statusBuf, statusBufLen);
     }
 
     /**
@@ -453,21 +472,15 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public RadosCommandResult executeRadosMonCommandTarget(final String[] commands, final String target, final String in) throws RadosException {
+        final byte[] inBuf = toInputBuffer(in);
         final PointerByReference outBuf = new PointerByReference();
-        final IntByReference outBufLen = new IntByReference();
+        final LongByReference outBufLen = new LongByReference();
         final PointerByReference statusBuf = new PointerByReference();
-        final IntByReference statusBufLen = new IntByReference();
+        final LongByReference statusBufLen = new LongByReference();
 
-        int r = rados.rados_mon_command_target(this.clusterPtr, target, commands, commands.length, in, in.length(), outBuf, outBufLen, statusBuf, statusBufLen);
+        int r = rados.rados_mon_command_target(this.clusterPtr, target, commands, commands.length, inBuf, inBuf.length, outBuf, outBufLen, statusBuf, statusBufLen);
 
-        final String status = (statusBuf.getValue() == null ? "" : new String(statusBuf.getValue().getByteArray(0, statusBufLen.getValue())));
-
-        if (r != 0)
-            throw new RadosException("Error when executing Rados monitor commands: " + status, r);
-
-        final String out = (outBuf.getValue() == null ? "" : new String(outBuf.getValue().getByteArray(0, outBufLen.getValue())));
-
-        return new RadosCommandResult(out, status);
+        return toCommandResult(r, "monitor", outBuf, outBufLen, statusBuf, statusBufLen);
     }
 
     /**
@@ -482,21 +495,51 @@ public class Rados extends RadosBase {
      * @throws RadosException
      */
     public RadosCommandResult executeRadosOsdCommand(final String[] commands, final int osdId, final String in) throws RadosException {
+        final byte[] inBuf = toInputBuffer(in);
         final PointerByReference outBuf = new PointerByReference();
-        final IntByReference outBufLen = new IntByReference();
+        final LongByReference outBufLen = new LongByReference();
         final PointerByReference statusBuf = new PointerByReference();
-        final IntByReference statusBufLen = new IntByReference();
+        final LongByReference statusBufLen = new LongByReference();
 
-        int r = rados.rados_osd_command(this.clusterPtr, osdId, commands, commands.length, in, in.length(), outBuf, outBufLen, statusBuf, statusBufLen);
+        int r = rados.rados_osd_command(this.clusterPtr, osdId, commands, commands.length, inBuf, inBuf.length, outBuf, outBufLen, statusBuf, statusBufLen);
 
-        final String status = (statusBuf.getValue() == null ? "" : new String(statusBuf.getValue().getByteArray(0, statusBufLen.getValue())));
+        return toCommandResult(r, "osd", outBuf, outBufLen, statusBuf, statusBufLen);
+    }
 
-        if (r != 0)
-            throw new RadosException("Error when executing Rados osd command: " + status, r);
+    private static byte[] toInputBuffer(final String in) {
+        return in == null ? new byte[0] : in.getBytes(UTF_8);
+    }
 
-        final String out = (outBuf.getValue() == null ? "" : new String(outBuf.getValue().getByteArray(0, outBufLen.getValue())));
+    /**
+     * Turn the raw output of a rados_*_command call into a RadosCommandResult.
+     *
+     * The output and status buffers are allocated by librados and must be
+     * released with rados_buffer_free(), which this method always does.
+     */
+    private RadosCommandResult toCommandResult(final int r, final String what,
+                                               final PointerByReference outBuf, final LongByReference outBufLen,
+                                               final PointerByReference statusBuf, final LongByReference statusBufLen)
+            throws RadosException {
+        final String status = readAndFreeBuffer(statusBuf, statusBufLen);
+        final String out = readAndFreeBuffer(outBuf, outBufLen);
+
+        if (r != 0) {
+            throw new RadosException("Error when executing Rados " + what + " commands: " + status, r);
+        }
 
         return new RadosCommandResult(out, status);
+    }
+
+    private static String readAndFreeBuffer(final PointerByReference buf, final LongByReference len) {
+        final Pointer p = buf.getValue();
+        if (p == null) {
+            return "";
+        }
+        try {
+            return new String(p.getByteArray(0, (int) len.getValue()), UTF_8);
+        } finally {
+            rados.rados_buffer_free(p);
+        }
     }
 
     /**
